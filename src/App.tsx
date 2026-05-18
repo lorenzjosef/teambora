@@ -146,7 +146,7 @@ function AppHeader({ step, onDashboard }: HeaderProps) {
 
 function WelcomeScreen({ onNext }: { onNext: () => void }) {
   return (
-    <section className="flex flex-1 flex-col justify-between gap-6">
+    <section className="flex flex-1 flex-col gap-6">
       <div className="relative -mx-5 -mt-2 min-h-[392px] overflow-hidden bg-orange">
         <div className="absolute inset-0 bg-orange" />
         <div className="absolute -left-24 top-0 h-72 w-72 rounded-full border-[42px] border-white/18" />
@@ -182,7 +182,7 @@ function WelcomeScreen({ onNext }: { onNext: () => void }) {
           </p>
         </div>
       </div>
-      <div className="space-y-3">
+      <div className="mt-auto space-y-3">
         <button className="cta w-full" onClick={onNext} type="button">
           Start with an alias
           <ArrowRight size={17} />
@@ -534,12 +534,13 @@ function SuggestionCard({ suggestion, onAccept, onReject }: SuggestionCardProps)
 }
 
 type SuggestionsScreenProps = {
+  onResetRejected: () => void;
   suggestions: ActivitySuggestion[];
   onAccept: (suggestion: ActivitySuggestion) => void;
   onReject: (id: string) => void;
 };
 
-function SuggestionsScreen({ suggestions, onAccept, onReject }: SuggestionsScreenProps) {
+function SuggestionsScreen({ onAccept, onReject, onResetRejected, suggestions }: SuggestionsScreenProps) {
   return (
     <section className="space-y-5">
       <div>
@@ -547,16 +548,27 @@ function SuggestionsScreen({ suggestions, onAccept, onReject }: SuggestionsScree
         <h1 className="title-lg">Groups near you</h1>
         <p className="body-copy mt-2">Ranked by interest, time, comfort, and rough travel radius.</p>
       </div>
-      <div className="grid gap-4">
-        {suggestions.map((suggestion) => (
-          <SuggestionCard
-            key={suggestion.id}
-            onAccept={onAccept}
-            onReject={onReject}
-            suggestion={suggestion}
-          />
-        ))}
-      </div>
+      {suggestions.length > 0 ? (
+        <div className="grid gap-4">
+          {suggestions.map((suggestion) => (
+            <SuggestionCard
+              key={suggestion.id}
+              onAccept={onAccept}
+              onReject={onReject}
+              suggestion={suggestion}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="soft-card text-center">
+          <Users className="mx-auto text-orange" size={30} />
+          <p className="mt-3 text-[16px] font-semibold">No matching groups left</p>
+          <p className="body-copy mt-1">Reset rejected suggestions or adjust interests and time slots.</p>
+          <button className="cta mt-4 w-full" onClick={onResetRejected} type="button">
+            Reset suggestions
+          </button>
+        </div>
+      )}
     </section>
   );
 }
@@ -671,11 +683,15 @@ function FeedbackScreen({ onSubmit, suggestionId }: FeedbackScreenProps) {
 function CalendarScreen({
   onConnectPage,
   onManual,
+  onFeedback,
+  onOpenAccepted,
   accepted,
   feedback,
 }: {
   onConnectPage: () => void;
   onManual: () => void;
+  onFeedback: () => void;
+  onOpenAccepted: () => void;
   accepted: ActivitySuggestion | null;
   feedback: Feedback[];
 }) {
@@ -701,6 +717,14 @@ function CalendarScreen({
             </div>
             <CalendarDays className="text-orange" size={24} />
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button className="cta-secondary" onClick={onOpenAccepted} type="button">
+              Open
+            </button>
+            <button className="cta-secondary" onClick={onFeedback} type="button">
+              Feedback
+            </button>
+          </div>
         </div>
       ) : (
         <div className="soft-card text-center">
@@ -719,7 +743,7 @@ function CalendarScreen({
   );
 }
 
-function FriendsScreen({ feedback }: { feedback: Feedback[] }) {
+function FriendsScreen({ feedback, onPlan }: { feedback: Feedback[]; onPlan: () => void }) {
   const hasRepeat = feedback.some((item) => item.wantsRepeat);
   const friends = hasRepeat
     ? ["Sam from the evening walk", "Mila from museum coffee"]
@@ -743,7 +767,7 @@ function FriendsScreen({ feedback }: { feedback: Feedback[] }) {
               <p className="text-[12px] text-muted">{index === 0 && hasRepeat ? "Meet-again preference saved" : "Suggested through shared activities"}</p>
             </div>
           </div>
-          <button className="cta-secondary h-9 px-3" type="button">Plan</button>
+          <button className="cta-secondary h-9 px-3" onClick={onPlan} type="button">Plan</button>
         </div>
       ))}
     </section>
@@ -751,23 +775,29 @@ function FriendsScreen({ feedback }: { feedback: Feedback[] }) {
 }
 
 type BottomNavProps = {
+  active: Step;
   onFriends: () => void;
   onHome: () => void;
   onCalendar: () => void;
 };
 
-function BottomNav({ onCalendar, onFriends, onHome }: BottomNavProps) {
+function BottomNav({ active, onCalendar, onFriends, onHome }: BottomNavProps) {
+  const itemClass = (target: Step) =>
+    `grid justify-items-center gap-1 rounded-2xl px-2 py-1.5 transition ${
+      active === target || (target === "groups" && active === "home") ? "bg-orangeSoft text-orange" : ""
+    }`;
+
   return (
     <nav className="bottom-nav">
-      <button className="grid justify-items-center gap-1" onClick={onHome} type="button">
+      <button className={itemClass("groups")} onClick={onHome} type="button">
         <Home size={16} />
         Home
       </button>
-      <button className="grid justify-items-center gap-1" onClick={onCalendar} type="button">
+      <button className={itemClass("calendar")} onClick={onCalendar} type="button">
         <CalendarDays size={16} />
         Calendar
       </button>
-      <button className="grid justify-items-center gap-1" onClick={onFriends} type="button">
+      <button className={itemClass("friends")} onClick={onFriends} type="button">
         <UserRound size={16} />
         Friends
       </button>
@@ -917,6 +947,15 @@ export default function App() {
   };
 
   const rejectSuggestion = (id: string) => setRejectedIds((current) => [...current, id]);
+  const resetRejected = () => {
+    setRejectedIds([]);
+    setBlockedIds([]);
+  };
+  const planWithFriend = () => {
+    const next = accepted ?? suggestions[0] ?? sessions[0];
+    setAccepted(next as ActivitySuggestion);
+    setStep("confirmed");
+  };
 
   const submitFeedback = (nextFeedback: Feedback) => {
     setFeedback((current) => [...current.filter((item) => item.suggestionId !== nextFeedback.suggestionId), nextFeedback]);
@@ -961,7 +1000,14 @@ export default function App() {
     }
 
     if (step === "home") {
-      return <SuggestionsScreen onAccept={acceptSuggestion} onReject={rejectSuggestion} suggestions={suggestions} />;
+      return (
+        <SuggestionsScreen
+          onAccept={acceptSuggestion}
+          onReject={rejectSuggestion}
+          onResetRejected={resetRejected}
+          suggestions={suggestions}
+        />
+      );
     }
 
     if (step === "calendar") {
@@ -969,18 +1015,27 @@ export default function App() {
         <CalendarScreen
           accepted={accepted}
           feedback={feedback}
+          onFeedback={() => (accepted ? setStep("feedback") : setStep("groups"))}
           onConnectPage={() => setStep("calendarConnect")}
           onManual={() => setStep("manualAvailability")}
+          onOpenAccepted={() => (accepted ? setStep("confirmed") : setStep("groups"))}
         />
       );
     }
 
     if (step === "groups") {
-      return <SuggestionsScreen onAccept={acceptSuggestion} onReject={rejectSuggestion} suggestions={suggestions} />;
+      return (
+        <SuggestionsScreen
+          onAccept={acceptSuggestion}
+          onReject={rejectSuggestion}
+          onResetRejected={resetRejected}
+          suggestions={suggestions}
+        />
+      );
     }
 
     if (step === "friends") {
-      return <FriendsScreen feedback={feedback} />;
+      return <FriendsScreen feedback={feedback} onPlan={planWithFriend} />;
     }
 
     if (step === "confirmed" && accepted) {
@@ -1019,6 +1074,7 @@ export default function App() {
             </div>
             {!isOnboarding(step) ? (
               <BottomNav
+                active={step}
                 onCalendar={goCalendar}
                 onFriends={goFriends}
                 onHome={goHome}
