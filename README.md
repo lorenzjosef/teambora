@@ -35,3 +35,10 @@ Vercel can deploy this as a standard Vite app:
 - Node version: current LTS is fine
 
 Do not commit `.vercel` or secret files.
+
+## Design notes
+
+- Current image URLs live in `src/data.ts` under `brandAssets`.
+- They are temporary Figma MCP assets and are intentionally isolated for easy replacement.
+- The prototype view toggle must show either the mobile app or the dashboard, never both at once.
+- Keep new UI built from shared classes in `src/styles.css` rather than page-specific styling.

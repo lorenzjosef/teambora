@@ -24,6 +24,7 @@ Always preserve this message:
 - Do not require real names for the prototype.
 - Do not use Mozi branding in app UI.
 - Do not commit `Supabase_API_KEY.txt`, `.env`, or `.vercel`.
+- Keep mobile app and municipality dashboard as separate toggleable views. Never render both at once in the running prototype.
 
 ## Prototype Priorities
 
@@ -60,6 +61,7 @@ Supabase can be represented through data shapes and future architecture notes, b
 - Keep dashboard professional and aggregate-only.
 - Keep design mobile-first and close to the Figma direction: warm canvas, black primary actions, orange accent, large iOS-style cards, restrained typography.
 - Use reusable style primitives from `src/styles.css`; avoid one-off page styling.
+- Keep replaceable Figma image URLs centralized in `src/data.ts` under `brandAssets`.
 
 ## Matching Guidance
 

@@ -616,11 +616,12 @@ function FeedbackScreen({ onSubmit, suggestionId }: FeedbackScreenProps) {
 
 type BottomNavProps = {
   onDashboard: () => void;
+  onGroups: () => void;
   onHome: () => void;
   onCalendar: () => void;
 };
 
-function BottomNav({ onCalendar, onDashboard, onHome }: BottomNavProps) {
+function BottomNav({ onCalendar, onDashboard, onGroups, onHome }: BottomNavProps) {
   return (
     <nav className="bottom-nav">
       <button className="grid justify-items-center gap-1" onClick={onHome} type="button">
@@ -631,7 +632,7 @@ function BottomNav({ onCalendar, onDashboard, onHome }: BottomNavProps) {
         <CalendarDays size={16} />
         Calendar
       </button>
-      <button className="grid justify-items-center gap-1" type="button">
+      <button className="grid justify-items-center gap-1" onClick={onGroups} type="button">
         <Users size={16} />
         Groups
       </button>
@@ -765,6 +766,10 @@ export default function App() {
     setMode("mobile");
     setStep("availability");
   };
+  const goGroups = () => {
+    setMode("mobile");
+    setStep("suggestions");
+  };
 
   const acceptSuggestion = (suggestion: ActivitySuggestion) => {
     setAccepted(suggestion);
@@ -842,7 +847,7 @@ export default function App() {
               {renderScreen()}
             </div>
             {step !== "welcome" ? (
-              <BottomNav onCalendar={goCalendar} onDashboard={goDashboard} onHome={goHome} />
+              <BottomNav onCalendar={goCalendar} onDashboard={goDashboard} onGroups={goGroups} onHome={goHome} />
             ) : null}
           </div>
         ) : (
