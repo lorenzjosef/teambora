@@ -8,6 +8,29 @@ export const brandAssets = {
   profileCardImage: "https://www.figma.com/api/mcp/asset/aaeeafc5-e073-4507-927a-7aaa80cebaa5",
 };
 
+export const activityImages: Record<Interest, string> = {
+  walking: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=300&h=300&fit=crop&q=80",
+  museums: "https://images.unsplash.com/photo-1566127444979-b3d2b654e3d7?w=300&h=300&fit=crop&q=80",
+  coffee: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=300&h=300&fit=crop&q=80",
+  studying: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=300&h=300&fit=crop&q=80",
+  padel: "https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?w=300&h=300&fit=crop&q=80",
+  football: "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=300&h=300&fit=crop&q=80",
+  board_games: "https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=300&h=300&fit=crop&q=80",
+  cooking: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=300&h=300&fit=crop&q=80",
+  cinema: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=300&h=300&fit=crop&q=80",
+  community_events: "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=300&h=300&fit=crop&q=80",
+  yoga: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=300&h=300&fit=crop&q=80",
+  cycling: "https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=300&h=300&fit=crop&q=80",
+  photography: "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=300&h=300&fit=crop&q=80",
+  music: "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=300&h=300&fit=crop&q=80",
+  gardening: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=300&h=300&fit=crop&q=80",
+  crafts: "https://images.unsplash.com/photo-1452860606245-08befc0ff44b?w=300&h=300&fit=crop&q=80",
+  swimming: "https://images.unsplash.com/photo-1530549387789-4c1017266635?w=300&h=300&fit=crop&q=80",
+  dancing: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=300&h=300&fit=crop&q=80",
+  languages: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=300&h=300&fit=crop&q=80",
+  other: "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=300&h=300&fit=crop&q=80",
+};
+
 export const peopleCards = [
   {
     name: "Ann James",
@@ -40,6 +63,16 @@ export const interests: { id: Interest; label: string }[] = [
   { id: "studying", label: "Study session" },
   { id: "cooking", label: "Cooking" },
   { id: "community_events", label: "Local events" },
+  { id: "yoga", label: "Yoga" },
+  { id: "cycling", label: "Cycling" },
+  { id: "photography", label: "Photography" },
+  { id: "music", label: "Music" },
+  { id: "gardening", label: "Gardening" },
+  { id: "crafts", label: "Crafts" },
+  { id: "swimming", label: "Swimming" },
+  { id: "dancing", label: "Dancing" },
+  { id: "languages", label: "Languages" },
+  { id: "other", label: "Other" },
 ];
 
 export const comfortOptions: { id: ComfortKey; label: string; helper: string }[] = [
@@ -59,17 +92,20 @@ export const availabilityOptions: AvailabilitySlot[] = [
 export const defaultProfile: ResidentProfile = {
   id: "resident-demo",
   displayName: "Alex",
+  email: "alex@example.com",
+  phone: "+31 6 1234 5678",
+  profileImage: brandAssets.profileCardImage,
   neighborhood: "Kralingen",
   travelRadiusKm: 4,
-  interests: ["walking", "coffee", "museums"],
+  interests: [],
   comfort: {
     smallGroups: true,
     oneToOne: false,
     publicPlacesOnly: true,
     communityHosted: true,
   },
-  availability: [availabilityOptions[1]],
-  routines: ["Evening walk", "Museum visit"],
+  availability: [],
+  routines: [],
 };
 
 export const sessions: ActivitySession[] = [

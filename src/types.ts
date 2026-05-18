@@ -8,7 +8,17 @@ export type Interest =
   | "board_games"
   | "studying"
   | "cooking"
-  | "community_events";
+  | "community_events"
+  | "yoga"
+  | "cycling"
+  | "photography"
+  | "music"
+  | "gardening"
+  | "crafts"
+  | "swimming"
+  | "dancing"
+  | "languages"
+  | "other";
 
 export type ComfortKey = "smallGroups" | "oneToOne" | "publicPlacesOnly" | "communityHosted";
 
@@ -24,6 +34,9 @@ export type AvailabilitySlot = {
 export type ResidentProfile = {
   id: string;
   displayName: string;
+  email: string;
+  phone: string;
+  profileImage: string;
   neighborhood: string;
   travelRadiusKm: number;
   interests: Interest[];
