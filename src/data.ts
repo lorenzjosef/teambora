@@ -2,7 +2,7 @@ import type { ActivitySession, AvailabilitySlot, ComfortKey, Interest, ResidentP
 
 export const brandAssets = {
   logoWordmark: "Gesellig",
-  heroImage: "https://images.unsplash.com/photo-1543807535-eceef0bc6599?w=800&q=80",
+  heroImage: "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=800&q=80",
   cityCardImage: "https://images.unsplash.com/photo-1555109307-f7d9da25c244?w=800&q=80",
   profileCardImage: "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=800&q=80",
 };

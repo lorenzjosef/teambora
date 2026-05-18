@@ -38,11 +38,15 @@ type Step =
   | "groups"
   | "friends"
   | "confirmed"
-  | "feedback";
+  | "feedback"
+  | "feedbackSuccess"
+  | "reported";
 type ViewMode = "mobile" | "dashboard";
 
 const onboardingSteps: Step[] = ["welcome", "profile", "interests", "comfort", "calendarConnect", "manualAvailability"];
+const tabSteps: Step[] = ["home", "calendar", "groups", "friends"];
 const isOnboarding = (step: Step) => onboardingSteps.includes(step);
+const isTabStep = (step: Step) => tabSteps.includes(step);
 
 const formatTime = (slot: AvailabilitySlot) => `${slot.day}, ${slot.startTime}-${slot.endTime}`;
 
@@ -138,26 +142,8 @@ function WelcomeScreen({ onNext }: { onNext: () => void }) {
   return (
     <section className="flex flex-1 flex-col gap-6">
       <div className="relative -mx-5 -mt-2 flex-1 overflow-hidden bg-orange">
-        <div className="absolute inset-0 bg-orange" />
-        <div className="absolute -left-24 top-0 h-72 w-72 rounded-full border-[42px] border-white/18" />
-        <div className="absolute -right-20 bottom-10 h-60 w-60 rounded-full border-[38px] border-white/20" />
-        <div className="absolute left-32 top-20 h-32 w-32 rounded-full border-[24px] border-white/14" />
-        <div className="absolute left-8 top-24 flex -space-x-3">
-          {["A", "M", "S", "L"].map((initial, index) => (
-            <div
-              className={`grid h-16 w-16 place-items-center rounded-full border-4 border-orange text-[20px] font-bold shadow-card ${
-                index % 2 === 0 ? "bg-white text-orange" : "bg-ink text-white"
-              }`}
-              key={initial}
-            >
-              {initial}
-            </div>
-          ))}
-        </div>
-        <div className="absolute right-8 top-36 rounded-[26px] bg-white/95 px-4 py-3 shadow-card">
-          <p className="text-[12px] font-semibold text-muted">Tonight</p>
-          <p className="text-[15px] font-semibold text-ink">Walk + coffee</p>
-        </div>
+        <img alt="" className="absolute inset-0 h-full w-full object-cover object-[50%_30%]" src={brandAssets.heroImage} />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/70" />
         <div className="absolute left-5 top-5">
           <DutchFlag />
         </div>
@@ -681,6 +667,57 @@ function FeedbackScreen({ onSubmit, suggestionId }: FeedbackScreenProps) {
   );
 }
 
+function FeedbackSuccessScreen({
+  onFriends,
+  onGroups,
+}: {
+  onFriends: () => void;
+  onGroups: () => void;
+}) {
+  return (
+    <section className="flex min-h-[620px] flex-col justify-between space-y-6">
+      <div>
+        <div className="top-line mb-5" />
+        <div className="grid h-16 w-16 place-items-center rounded-full bg-orangeSoft text-orange">
+          <HeartHandshake size={28} />
+        </div>
+        <h1 className="title-lg mt-5">Thanks for sharing</h1>
+        <p className="body-copy mt-2">
+          Your feedback stays private. It only improves future suggestions and grouped city trends.
+        </p>
+      </div>
+      <div className="space-y-3">
+        <button className="cta w-full" onClick={onFriends} type="button">
+          See meet-again list
+        </button>
+        <button className="cta-secondary w-full" onClick={onGroups} type="button">
+          Back to groups
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function ReportedScreen({ onGroups }: { onGroups: () => void }) {
+  return (
+    <section className="flex min-h-[620px] flex-col justify-between space-y-6">
+      <div>
+        <div className="top-line mb-5" />
+        <div className="grid h-16 w-16 place-items-center rounded-full bg-orangeSoft text-orange">
+          <ShieldCheck size={28} />
+        </div>
+        <h1 className="title-lg mt-5">This activity is hidden</h1>
+        <p className="body-copy mt-2">
+          We removed it from your suggestions. In production, a community host or moderator would review the report.
+        </p>
+      </div>
+      <button className="cta w-full" onClick={onGroups} type="button">
+        Back to groups
+      </button>
+    </section>
+  );
+}
+
 function CalendarScreen({
   onConnectPage,
   onCancelAccepted,
@@ -981,7 +1018,7 @@ export default function App() {
 
   const submitFeedback = (nextFeedback: Feedback) => {
     setFeedback((current) => [...current.filter((item) => item.suggestionId !== nextFeedback.suggestionId), nextFeedback]);
-    setMode("dashboard");
+    setStep("feedbackSuccess");
   };
 
   const renderScreen = () => {
@@ -1065,6 +1102,14 @@ export default function App() {
       return <FriendsScreen feedback={feedback} onPlan={planWithFriend} />;
     }
 
+    if (step === "feedbackSuccess") {
+      return <FeedbackSuccessScreen onFriends={goFriends} onGroups={goHome} />;
+    }
+
+    if (step === "reported") {
+      return <ReportedScreen onGroups={goHome} />;
+    }
+
     if (step === "confirmed" && accepted) {
       return (
         <ConfirmedScreen
@@ -1074,7 +1119,7 @@ export default function App() {
           onReport={() => {
             setBlockedIds((current) => [...current, accepted.id]);
             setAccepted(null);
-            setStep("groups");
+            setStep("reported");
           }}
         />
       );
@@ -1099,7 +1144,7 @@ export default function App() {
               {isOnboarding(step) ? <Progress step={step} /> : null}
               {renderScreen()}
             </div>
-            {!isOnboarding(step) ? (
+            {isTabStep(step) ? (
               <BottomNav
                 active={step}
                 onCalendar={goCalendar}
