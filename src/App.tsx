@@ -145,6 +145,16 @@ function PersonCarousel({ compact = false }: { compact?: boolean }) {
 function Progress({ step }: { step: Step }) {
   const activeSteps = isOnboarding(step) ? onboardingSteps : ["home", "calendar", "groups", "friends"];
   const index = Math.max(activeSteps.indexOf(step), 0);
+  const progressWidth = `${((index + 1) / activeSteps.length) * 100}%`;
+
+  if (isOnboarding(step)) {
+    return (
+      <div className="my-6 h-[3px] w-full rounded-full bg-[#eeebe5]">
+        <div className="h-full rounded-full bg-orange transition-all" style={{ width: progressWidth }} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center justify-center gap-1 py-3">
       {activeSteps.map((item, itemIndex) => (
@@ -154,6 +164,17 @@ function Progress({ step }: { step: Step }) {
         />
       ))}
     </div>
+  );
+}
+
+function OnboardingHeader() {
+  return (
+    <header className="relative flex h-12 items-center justify-center">
+      <img alt="" className="h-10 w-10 object-contain" src={brandAssets.logoMark} />
+      <div className="absolute right-0 top-3">
+        <DutchFlag />
+      </div>
+    </header>
   );
 }
 
@@ -219,7 +240,6 @@ function ProfileScreen({ profile, setProfile, onNext }: ProfileScreenProps) {
   return (
     <section className="space-y-6">
       <div>
-        <div className="top-line mb-5" />
         <h1 className="title-lg">What should people call you?</h1>
         <p className="body-copy mt-2">Use a first name or alias. You can change it later.</p>
       </div>
@@ -280,7 +300,6 @@ function InterestsScreen({ profile, setProfile, onNext }: PreferencesScreenProps
   return (
     <section className="space-y-6">
       <div>
-        <div className="top-line mb-5" />
         <h1 className="title-lg">What would you like to do with others?</h1>
         <p className="body-copy mt-2">Pick normal activities. You decide your comfort boundaries.</p>
       </div>
@@ -315,7 +334,6 @@ function ComfortScreen({ profile, setProfile, onNext }: PreferencesScreenProps) 
   return (
     <section className="space-y-6">
       <div>
-        <div className="top-line mb-5" />
         <h1 className="title-lg">What feels comfortable?</h1>
         <p className="body-copy mt-2">These choices filter suggestions before anything is shown.</p>
       </div>
@@ -356,7 +374,6 @@ function CalendarConnectScreen({ calendarConnected, onConnect, onManual }: Calen
   return (
     <section className="space-y-6">
       <div>
-        <div className="top-line mb-5" />
         <h1 className="title-lg">Connect your calendar?</h1>
         <p className="body-copy mt-2">Optional. You can skip and set free windows manually.</p>
       </div>
@@ -422,7 +439,6 @@ function ManualAvailabilityScreen({ profile, setProfile, onNext }: AvailabilityS
   return (
     <section className="space-y-6">
       <div>
-        <div className="top-line mb-5" />
         <h1 className="title-lg">Set your free windows</h1>
         <p className="body-copy mt-2">Choose times you would be open to making social.</p>
       </div>
@@ -1191,8 +1207,9 @@ export default function App() {
           <div className="phone-frame">
             <StatusBar />
             <div className="screen-pad">
-              {step !== "welcome" ? <AppHeader /> : null}
-              {isOnboarding(step) ? <Progress step={step} /> : null}
+              {isOnboarding(step) && step !== "welcome" ? <OnboardingHeader /> : null}
+              {!isOnboarding(step) && step !== "welcome" ? <AppHeader /> : null}
+              {isOnboarding(step) && step !== "welcome" ? <Progress step={step} /> : null}
               {renderScreen()}
             </div>
             {isTabStep(step) ? (
