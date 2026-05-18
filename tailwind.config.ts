@@ -7,6 +7,7 @@ export default {
       colors: {
         canvas: "var(--color-canvas)",
         surface: "var(--color-surface)",
+        tertiary: "var(--color-tertiary)",
         ink: "var(--color-ink)",
         muted: "var(--color-muted)",
         line: "var(--color-line)",

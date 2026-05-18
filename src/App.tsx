@@ -20,6 +20,7 @@ import {
   defaultProfile,
   interests,
   neighborhoods,
+  peopleCards,
   routines,
   sessions,
 } from "./data";
@@ -74,7 +75,9 @@ function DutchFlag() {
 function Logo() {
   return (
     <div className="flex items-center gap-2">
-      <div className="brand-mark">G</div>
+      <div className="grid h-9 w-9 place-items-center rounded-full bg-white">
+        <img alt="" className="h-7 w-7 object-contain" src={brandAssets.logoMark} />
+      </div>
       <div className="leading-none">
         <p className="text-[13px] font-black">{brandAssets.logoWordmark}</p>
         <p className="text-[10px] font-medium text-muted">Rotterdam pilot</p>
@@ -112,6 +115,33 @@ function StatusBar() {
   );
 }
 
+function PageDots({ active = 0, count = 5 }: { active?: number; count?: number }) {
+  return (
+    <div className="flex items-center justify-center gap-1.5">
+      {Array.from({ length: count }, (_, index) => (
+        <span
+          className={`h-1.5 rounded-full ${index === active ? "w-5 bg-orange" : "w-1.5 bg-line"}`}
+          key={index}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PersonCarousel({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`flex gap-3 overflow-x-auto pb-1 ${compact ? "-mx-1 px-1" : "-mx-2 px-2"}`}>
+      {peopleCards.map((person) => (
+        <article className="person-card" key={person.name}>
+          <img alt="" className={`person-image ${compact ? "h-[92px]" : ""}`} src={person.image} />
+          <p className="mt-2 truncate text-[13px] font-semibold tracking-[-0.2px]">{person.name}</p>
+          <p className="text-[10px] font-semibold text-muted">{person.daysLeft}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 function Progress({ step }: { step: Step }) {
   const activeSteps = isOnboarding(step) ? onboardingSteps : ["home", "calendar", "groups", "friends"];
   const index = Math.max(activeSteps.indexOf(step), 0);
@@ -141,21 +171,29 @@ function AppHeader() {
 function WelcomeScreen({ onNext }: { onNext: () => void }) {
   return (
     <section className="flex flex-1 flex-col gap-6">
-      <div className="relative -mx-5 -mt-2 flex-1 overflow-hidden bg-orange">
-        <img alt="" className="absolute inset-0 h-full w-full object-cover object-[50%_30%]" src={brandAssets.heroImage} />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/70" />
-        <div className="absolute left-5 top-5">
-          <DutchFlag />
+      <div className="-mx-5 -mt-2 overflow-hidden">
+        <div className="relative h-[260px] bg-[#eeebe5]">
+          <img alt="" className="absolute inset-0 h-full w-full object-cover object-center" src={brandAssets.heroImage} />
+          <div className="absolute left-5 top-5 flex items-center gap-2 rounded-full bg-white/90 px-3 py-2">
+            <DutchFlag />
+            <span className="text-[13px] font-semibold">9.41</span>
+          </div>
+          <div className="absolute right-5 top-5 rounded-full bg-white/90 px-3 py-2 text-[12px] font-semibold text-ink">
+            Rotterdam
+          </div>
         </div>
-        <div className="absolute right-5 top-5 rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-ink">
-          Rotterdam
-        </div>
-        <div className="absolute inset-x-6 bottom-7 text-white">
-          <div className="mb-4 brand-mark bg-white text-orange shadow-card">G</div>
-          <h1 className="title-xl max-w-[285px]">Make free moments social.</h1>
-          <p className="mt-3 max-w-[270px] text-[14px] leading-5 text-white/85">
-            Find a walk, coffee, museum visit, or local table that fits your time and comfort.
-          </p>
+        <div className="relative overflow-hidden bg-orange px-6 py-8 text-white">
+          <div className="absolute -right-12 top-10 h-36 w-36 rounded-full border-[34px] border-white/20" />
+          <div className="absolute left-20 top-0 h-24 w-24 rounded-full border-[24px] border-white/20" />
+          <div className="relative">
+            <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-white shadow-card">
+              <img alt="" className="h-8 w-8 object-contain" src={brandAssets.logoMark} />
+            </div>
+            <h1 className="title-xl max-w-[285px]">Make free moments social.</h1>
+            <p className="mt-4 max-w-[290px] text-[16px] leading-6 text-white/90">
+              Find a walk, coffee, museum visit, or local table that fits your time and comfort.
+            </p>
+          </div>
         </div>
       </div>
       <div className="mt-auto space-y-3">
@@ -462,29 +500,28 @@ type SuggestionCardProps = {
 
 function SuggestionCard({ suggestion, onAccept, onReject }: SuggestionCardProps) {
   return (
-    <article className="soft-card space-y-4">
-      <div className="relative h-24 overflow-hidden rounded-[22px] bg-orangeSoft">
-        <img alt="" className="figma-image object-top" src={brandAssets.cityCardImage} />
-        <div className="absolute inset-0 bg-gradient-to-r from-ink/75 via-ink/20 to-transparent" />
-        <div className="absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold">
+    <article className="figma-panel space-y-4">
+      <div className="flex items-center justify-between">
+        <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold">
           {suggestion.isCommunityHosted ? "Hosted public place" : "Public place"}
-        </div>
+        </span>
+        <span className="text-[12px] font-semibold text-orange">{suggestion.matchScore}% fit</span>
       </div>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[12px] font-semibold text-orange">{suggestion.matchScore}% coordination fit</p>
-          <h2 className="mt-1 text-[19px] font-semibold leading-tight">{suggestion.title}</h2>
+          <h2 className="figma-card-title">{suggestion.title}</h2>
+          <p className="mt-2 text-[13px] leading-5 text-muted">{formatTime(suggestion.time)}</p>
         </div>
-        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-orangeSoft text-orange">
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] bg-orangeSoft text-orange">
           {suggestion.interest === "coffee" ? <Coffee size={22} /> : <Users size={22} />}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2 text-[12px]">
-        <span className="rounded-2xl bg-canvas px-3 py-2">
+        <span className="rounded-2xl bg-white px-3 py-2">
           <MapPin className="mr-1 inline" size={13} />
           {suggestion.neighborhood}
         </span>
-        <span className="rounded-2xl bg-canvas px-3 py-2">
+        <span className="rounded-2xl bg-white px-3 py-2">
           <Users className="mr-1 inline" size={13} />
           {suggestion.confirmedCount}/{suggestion.capacity} spots
         </span>
@@ -501,7 +538,7 @@ function SuggestionCard({ suggestion, onAccept, onReject }: SuggestionCardProps)
         <button className="cta flex-1" onClick={() => onAccept(suggestion)} type="button">
           Accept
         </button>
-        <button className="cta-secondary w-12 px-0" onClick={() => onReject(suggestion.id)} type="button" aria-label="Reject">
+        <button className="cta-secondary w-12 bg-surface px-0" onClick={() => onReject(suggestion.id)} type="button" aria-label="Reject">
           <X size={17} />
         </button>
       </div>
@@ -523,10 +560,26 @@ function SuggestionsScreen({ accepted, onAccept, onReject, onResetRejected, sign
 
   return (
     <section className="space-y-5">
-      <div>
+      <div className="space-y-4">
         <div className="top-line mb-5" />
-        <h1 className="title-lg">Groups near you</h1>
-        <p className="body-copy mt-2">Ranked by interest, time, comfort, and rough travel radius.</p>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="title-lg">Good afternoon from <span className="text-orange">Rotterdam</span></h1>
+          <span className="date-chip shrink-0">Today</span>
+        </div>
+        <p className="body-copy">See who is around for shared public activities.</p>
+      </div>
+      <div className="figma-panel space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[13px] font-semibold text-orange">Suggested next</p>
+          <PageDots active={1} count={5} />
+        </div>
+        <PersonCarousel />
+        <div>
+          <h2 className="figma-card-title">Groups near you</h2>
+          <p className="mt-2 text-[13px] leading-5 text-muted">
+            Ranked by interest, availability, comfort, and rough travel radius.
+          </p>
+        </div>
       </div>
       {accepted ? (
         <div className="soft-card border-orange bg-orangeSoft">
@@ -795,8 +848,8 @@ function CalendarScreen({
 function FriendsScreen({ feedback, onPlan }: { feedback: Feedback[]; onPlan: () => void }) {
   const hasRepeat = feedback.some((item) => item.wantsRepeat);
   const friends = hasRepeat
-    ? ["Daan from the Kralingse Plas walk", "Elif from Depot Boijmans cafe"]
-    : ["Daan from nearby walks", "Elif from museum coffee"];
+    ? ["Ann James from the Kralingse Plas walk", "Lauren Brand from Depot Boijmans cafe"]
+    : ["Ann James from nearby walks", "Lauren Brand from museum coffee"];
 
   return (
     <section className="space-y-5">
@@ -814,9 +867,7 @@ function FriendsScreen({ feedback, onPlan }: { feedback: Feedback[]; onPlan: () 
       {friends.map((friend, index) => (
         <div className="soft-card flex items-center justify-between" key={friend}>
           <div className="flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-full bg-orangeSoft text-[16px] font-semibold text-orange">
-              {friend[0]}
-            </div>
+            <img alt="" className="h-14 w-14 rounded-[18px] object-cover" src={peopleCards[index % peopleCards.length].image} />
             <div>
               <p className="text-[15px] font-semibold">{friend}</p>
               <p className="text-[12px] text-muted">{index === 0 && hasRepeat ? "Meet-again preference saved" : "Suggested through shared activities"}</p>

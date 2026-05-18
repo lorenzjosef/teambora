@@ -2,10 +2,32 @@ import type { ActivitySession, AvailabilitySlot, ComfortKey, Interest, ResidentP
 
 export const brandAssets = {
   logoWordmark: "Gesellig",
-  heroImage: "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=800&q=80",
-  cityCardImage: "https://images.unsplash.com/photo-1555109307-f7d9da25c244?w=800&q=80",
-  profileCardImage: "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=800&q=80",
+  logoMark: "https://www.figma.com/api/mcp/asset/56fe4e24-fc67-49db-bfc9-81042f09c4d7",
+  heroImage: "https://www.figma.com/api/mcp/asset/6a35cccc-51a2-4ddb-b303-8a754ceaf661",
+  cityCardImage: "https://www.figma.com/api/mcp/asset/62bb4bb6-a083-43a3-8305-ae2948979bee",
+  profileCardImage: "https://www.figma.com/api/mcp/asset/aaeeafc5-e073-4507-927a-7aaa80cebaa5",
 };
+
+export const peopleCards = [
+  {
+    name: "Ann James",
+    image: "https://www.figma.com/api/mcp/asset/6a35cccc-51a2-4ddb-b303-8a754ceaf661",
+    note: "Walking nearby",
+    daysLeft: "7 days left",
+  },
+  {
+    name: "Lauren Brand",
+    image: "https://www.figma.com/api/mcp/asset/62bb4bb6-a083-43a3-8305-ae2948979bee",
+    note: "Museum coffee",
+    daysLeft: "7 days left",
+  },
+  {
+    name: "Alex Thomas",
+    image: "https://www.figma.com/api/mcp/asset/aaeeafc5-e073-4507-927a-7aaa80cebaa5",
+    note: "Board games",
+    daysLeft: "4 days left",
+  },
+];
 
 export const interests: { id: Interest; label: string }[] = [
   { id: "coffee", label: "Coffee" },
