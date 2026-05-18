@@ -149,17 +149,26 @@ function WelcomeScreen({ onNext }: { onNext: () => void }) {
   return (
     <section className="flex flex-1 flex-col justify-between gap-6">
       <div className="relative -mx-5 -mt-2 min-h-[392px] overflow-hidden bg-orange">
-        <div className="absolute inset-x-0 top-0 h-[255px] overflow-hidden">
-          <img
-            alt=""
-            className="absolute left-1/2 top-0 h-[390px] w-[390px] -translate-x-1/2 object-cover object-top"
-            src={brandAssets.heroImage}
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/5 to-orange" />
+        <div className="absolute inset-0 bg-orange" />
+        <div className="absolute -left-24 top-0 h-72 w-72 rounded-full border-[42px] border-white/18" />
+        <div className="absolute -right-20 bottom-10 h-60 w-60 rounded-full border-[38px] border-white/20" />
+        <div className="absolute left-32 top-20 h-32 w-32 rounded-full border-[24px] border-white/14" />
+        <div className="absolute left-8 top-24 flex -space-x-3">
+          {["A", "M", "S", "L"].map((initial, index) => (
+            <div
+              className={`grid h-16 w-16 place-items-center rounded-full border-4 border-orange text-[20px] font-bold shadow-card ${
+                index % 2 === 0 ? "bg-white text-orange" : "bg-ink text-white"
+              }`}
+              key={initial}
+            >
+              {initial}
+            </div>
+          ))}
         </div>
-        <div className="absolute inset-x-0 bottom-0 h-[190px] bg-orange" />
-        <div className="absolute -bottom-16 -right-16 h-48 w-48 rounded-full border-[34px] border-white/20" />
-        <div className="absolute bottom-20 left-20 h-28 w-28 rounded-full border-[24px] border-white/15" />
+        <div className="absolute right-8 top-36 rounded-[26px] bg-white/95 px-4 py-3 shadow-card">
+          <p className="text-[12px] font-semibold text-muted">Tonight</p>
+          <p className="text-[15px] font-semibold text-ink">Walk + coffee</p>
+        </div>
         <div className="absolute left-5 top-5">
           <DutchFlag />
         </div>
