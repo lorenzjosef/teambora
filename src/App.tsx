@@ -149,8 +149,17 @@ function WelcomeScreen({ onNext }: { onNext: () => void }) {
   return (
     <section className="flex flex-1 flex-col justify-between gap-6">
       <div className="relative -mx-5 -mt-2 min-h-[392px] overflow-hidden bg-orange">
-        <img alt="" className="absolute inset-0 h-full w-full scale-[1.08] object-cover object-[52%_18%]" src={brandAssets.heroImage} />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/70" />
+        <div className="absolute inset-x-0 top-0 h-[255px] overflow-hidden">
+          <img
+            alt=""
+            className="absolute left-1/2 top-0 h-[390px] w-[390px] -translate-x-1/2 object-cover object-top"
+            src={brandAssets.heroImage}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/5 to-orange" />
+        </div>
+        <div className="absolute inset-x-0 bottom-0 h-[190px] bg-orange" />
+        <div className="absolute -bottom-16 -right-16 h-48 w-48 rounded-full border-[34px] border-white/20" />
+        <div className="absolute bottom-20 left-20 h-28 w-28 rounded-full border-[24px] border-white/15" />
         <div className="absolute left-5 top-5">
           <DutchFlag />
         </div>
@@ -527,7 +536,7 @@ function SuggestionsScreen({ suggestions, onAccept, onReject }: SuggestionsScree
     <section className="space-y-5">
       <div>
         <div className="top-line mb-5" />
-        <h1 className="title-lg">3 shared activities that fit your moment</h1>
+        <h1 className="title-lg">Groups near you</h1>
         <p className="body-copy mt-2">Ranked by interest, time, comfort, and rough travel radius.</p>
       </div>
       <div className="grid gap-4">
@@ -651,98 +660,47 @@ function FeedbackScreen({ onSubmit, suggestionId }: FeedbackScreenProps) {
   );
 }
 
-function HomeScreen({
-  accepted,
-  feedback,
-  onCalendar,
-  onFriends,
-  onGroups,
-}: {
-  accepted: ActivitySuggestion | null;
-  feedback: Feedback[];
-  onCalendar: () => void;
-  onFriends: () => void;
-  onGroups: () => void;
-}) {
-  return (
-    <section className="space-y-5">
-      <div>
-        <div className="top-line mb-5" />
-        <h1 className="title-lg">Good afternoon from Rotterdam</h1>
-        <p className="body-copy mt-2">Turn one free moment into something shared.</p>
-      </div>
-      <div className="relative h-52 overflow-hidden rounded-[28px] bg-orange">
-        <img alt="" className="figma-image object-top" src={brandAssets.cityCardImage} />
-        <div className="absolute inset-0 bg-gradient-to-b from-ink/5 via-ink/15 to-ink/70" />
-        <div className="absolute bottom-4 left-4 right-4 text-white">
-          <p className="text-[13px] font-semibold">Suggested next</p>
-          <h2 className="mt-1 text-[22px] font-semibold leading-tight">
-            {accepted ? accepted.title : "Find a small public activity"}
-          </h2>
-          <button className="mt-4 cta bg-white text-ink" onClick={onGroups} type="button">
-            View groups
-          </button>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <button className="soft-card text-left" onClick={onCalendar} type="button">
-          <CalendarDays className="text-orange" size={22} />
-          <p className="mt-3 text-[15px] font-semibold">Calendar</p>
-          <p className="text-[12px] text-muted">Manage free windows</p>
-        </button>
-        <button className="soft-card text-left" onClick={onFriends} type="button">
-          <UserRound className="text-orange" size={22} />
-          <p className="mt-3 text-[15px] font-semibold">Friends</p>
-          <p className="text-[12px] text-muted">{feedback.some((item) => item.wantsRepeat) ? "1 repeat signal" : "Meet-again list"}</p>
-        </button>
-      </div>
-    </section>
-  );
-}
-
 function CalendarScreen({
-  calendarConnected,
   onConnectPage,
   onManual,
-  profile,
+  accepted,
+  feedback,
 }: {
-  calendarConnected: boolean;
   onConnectPage: () => void;
   onManual: () => void;
-  profile: ResidentProfile;
+  accepted: ActivitySuggestion | null;
+  feedback: Feedback[];
 }) {
+  const attendedIds = new Set(feedback.filter((item) => item.attended).map((item) => item.suggestionId));
+
   return (
     <section className="space-y-5">
       <div>
         <div className="top-line mb-5" />
-        <h1 className="title-lg">Your live week</h1>
-        <p className="body-copy mt-2">{calendarConnected ? "Calendar preview is connected for demo." : "No calendar connected. Manual slots still work."}</p>
+        <h1 className="title-lg">Your meet-ups</h1>
+        <p className="body-copy mt-2">Only activities you signed up for or attended appear here.</p>
       </div>
-      <div className="soft-card">
-        <div className="grid grid-cols-7 gap-1">
-          {liveWeek.map((day) => {
-            const active = profile.availability.some((slot) => slot.day.startsWith(day.day));
-            return (
-              <div className={`calendar-cell min-h-24 ${active ? "calendar-cell-active" : ""}`} key={day.monthDay}>
-                <span className="font-semibold">{day.day}</span>
-                <span>{day.monthDay}</span>
-                {active ? <span className="mt-auto text-orange">free</span> : <span className="mt-auto text-muted">busy</span>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <div className="grid gap-2">
-        {profile.availability.map((slot) => (
-          <div className="soft-card flex items-center justify-between" key={slot.label}>
+      {accepted ? (
+        <div className="grid gap-3">
+          <div className="soft-card flex items-center justify-between">
             <div>
-              <p className="text-[14px] font-semibold">{slot.label}</p>
-              <p className="text-[12px] text-muted">{formatTime(slot)}</p>
+              <p className="text-[12px] font-semibold text-orange">
+                {attendedIds.has(accepted.id) ? "Attended" : "Signed up"}
+              </p>
+              <p className="mt-1 text-[16px] font-semibold">{accepted.title}</p>
+              <p className="text-[12px] text-muted">{formatTime(accepted.time)}</p>
+              <p className="text-[12px] text-muted">{accepted.locationName}</p>
             </div>
-            <Check className="text-orange" size={18} />
+            <CalendarDays className="text-orange" size={24} />
           </div>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className="soft-card text-center">
+          <CalendarDays className="mx-auto text-orange" size={28} />
+          <p className="mt-3 text-[16px] font-semibold">No meet-ups yet</p>
+          <p className="body-copy mt-1">Accept a group activity and it will appear here.</p>
+        </div>
+      )}
       <button className="cta w-full" onClick={onConnectPage} type="button">
         Calendar connection
       </button>
@@ -935,7 +893,7 @@ export default function App() {
   const goDashboard = () => setMode("dashboard");
   const goHome = () => {
     setMode("mobile");
-    setStep("home");
+    setStep("groups");
   };
   const goCalendar = () => {
     setMode("mobile");
@@ -956,7 +914,7 @@ export default function App() {
       return current.some((item) => item.label === slot.label) ? current : [...current, slot];
     }, profile.availability);
     setProfile({ ...profile, availability: merged });
-    setStep("home");
+    setStep("groups");
   };
 
   const acceptSuggestion = (suggestion: ActivitySuggestion) => {
@@ -1000,8 +958,8 @@ export default function App() {
 
     if (step === "manualAvailability") {
       return (
-        <ManualAvailabilityScreen
-          onNext={() => setStep("home")}
+          <ManualAvailabilityScreen
+          onNext={() => setStep("groups")}
           profile={profile}
           setProfile={setProfile}
         />
@@ -1009,24 +967,16 @@ export default function App() {
     }
 
     if (step === "home") {
-      return (
-        <HomeScreen
-          accepted={accepted}
-          feedback={feedback}
-          onCalendar={goCalendar}
-          onFriends={goFriends}
-          onGroups={goGroups}
-        />
-      );
+      return <SuggestionsScreen onAccept={acceptSuggestion} onReject={rejectSuggestion} suggestions={suggestions} />;
     }
 
     if (step === "calendar") {
       return (
         <CalendarScreen
-          calendarConnected={calendarConnected}
+          accepted={accepted}
+          feedback={feedback}
           onConnectPage={() => setStep("calendarConnect")}
           onManual={() => setStep("manualAvailability")}
-          profile={profile}
         />
       );
     }
