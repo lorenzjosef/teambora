@@ -33,7 +33,7 @@ export function rankSuggestions(
 
       if (sameSlot(session, profile)) {
         score += 30;
-        reasons.push(`Fits your ${session.time.label.toLowerCase()} availability.`);
+        reasons.push(`Fits your ${session.time.label} availability.`);
       }
 
       if (nearby(session, profile)) {

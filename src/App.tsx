@@ -123,28 +123,12 @@ function Progress({ step }: { step: Step }) {
   );
 }
 
-type HeaderProps = {
-  onResetDemo: () => void;
-  step: Step;
-  onDashboard: () => void;
-};
-
-function AppHeader({ onDashboard, onResetDemo, step }: HeaderProps) {
+function AppHeader() {
   return (
     <header className="mb-5 flex items-center justify-between">
       <Logo />
       <div className="flex items-center gap-2">
         <DutchFlag />
-        {step !== "welcome" ? (
-          <>
-            <button className="cta-secondary h-9 px-3" onClick={onResetDemo} type="button">
-              Reset
-            </button>
-            <button className="cta-secondary h-9 px-3" onClick={onDashboard} type="button">
-              Dashboard
-            </button>
-          </>
-        ) : null}
       </div>
     </header>
   );
@@ -641,7 +625,7 @@ function FeedbackScreen({ onSubmit, suggestionId }: FeedbackScreenProps) {
         <p className="body-copy mt-2">Feedback stays private. Dashboard receives only grouped trends.</p>
       </div>
       <div className="soft-card">
-        <p className="mb-3 text-[13px] font-semibold">Connection after activity</p>
+        <p className="mb-3 text-[13px] font-semibold">How connected did you feel?</p>
         <div className="flex gap-2">
           {[1, 2, 3, 4, 5].map((value) => (
             <button
@@ -691,6 +675,7 @@ function FeedbackScreen({ onSubmit, suggestionId }: FeedbackScreenProps) {
 
 function CalendarScreen({
   onConnectPage,
+  onCancelAccepted,
   onManual,
   onFeedback,
   onOpenAccepted,
@@ -698,6 +683,7 @@ function CalendarScreen({
   feedback,
 }: {
   onConnectPage: () => void;
+  onCancelAccepted: () => void;
   onManual: () => void;
   onFeedback: () => void;
   onOpenAccepted: () => void;
@@ -734,10 +720,15 @@ function CalendarScreen({
             <button className="cta-secondary" onClick={onOpenAccepted} type="button">
               Open
             </button>
-            <button className="cta-secondary" onClick={onFeedback} type="button">
-              Feedback
+            <button className="cta-secondary" onClick={onCancelAccepted} type="button">
+              Cancel
             </button>
           </div>
+          {attendedIds.has(accepted.id) ? null : (
+            <button className="cta w-full" onClick={onFeedback} type="button">
+              Add feedback
+            </button>
+          )}
         </div>
       ) : (
         <div className="soft-card text-center">
@@ -759,8 +750,8 @@ function CalendarScreen({
 function FriendsScreen({ feedback, onPlan }: { feedback: Feedback[]; onPlan: () => void }) {
   const hasRepeat = feedback.some((item) => item.wantsRepeat);
   const friends = hasRepeat
-    ? ["Sam from the evening walk", "Mila from museum coffee"]
-    : ["Sam from nearby walks", "Mila from museum coffee"];
+    ? ["Daan from the Kralingse Plas walk", "Elif from Depot Boijmans cafe"]
+    : ["Daan from nearby walks", "Elif from museum coffee"];
 
   return (
     <section className="space-y-5">
@@ -833,10 +824,10 @@ function Dashboard({ acceptedCount, completedCount, feedback, onMobile, rejected
     : "4.2";
 
   const metrics = [
-    { label: "Suggestions accepted", value: `${18 + acceptedCount}`, trend: "+12% this week" },
-    { label: "Meetups completed", value: `${9 + completedCount}`, trend: "62% completion" },
-    { label: "Repeat meetups", value: `${5 + repeatCount}`, trend: "30-day signal" },
-    { label: "Connection pulse", value: avgConnection, trend: "grouped average" },
+    { label: "Suggestions accepted", value: `${142 + acceptedCount}`, trend: "+18% vs last month" },
+    { label: "Meetups completed", value: `${89 + completedCount}`, trend: "63% completion rate" },
+    { label: "Repeat meetups", value: `${34 + repeatCount}`, trend: "38% within 30 days" },
+    { label: "Activity satisfaction", value: avgConnection, trend: "grouped self-report" },
   ];
 
   return (
@@ -879,10 +870,11 @@ function Dashboard({ acceptedCount, completedCount, feedback, onMobile, rejected
         <div className="metric-card">
           <p className="text-[13px] font-semibold">Popular activity types</p>
           {[
-            ["Walking", "78%"],
-            ["Coffee", "64%"],
-            ["Museums", "49%"],
-            ["Board games", "36%"],
+            ["Walking", "74%"],
+            ["Coffee", "61%"],
+            ["Museums", "45%"],
+            ["Board games", "38%"],
+            ["Cooking", "29%"],
           ].map(([label, value]) => (
             <div className="mt-3" key={label}>
               <div className="mb-1 flex justify-between text-[12px] text-muted">
@@ -899,7 +891,7 @@ function Dashboard({ acceptedCount, completedCount, feedback, onMobile, rejected
           <p className="text-[13px] font-semibold">Privacy guardrails</p>
           <ul className="mt-3 space-y-2 text-[12px] leading-4 text-muted">
             <li>Neighborhood slices suppressed below group threshold.</li>
-            <li>Rejected suggestions: {rejectedCount} grouped only.</li>
+            <li>Rejected suggestions shown as group total only ({rejectedCount}).</li>
             <li>No personal or health inference.</li>
             <li>Consent withdrawal planned for production.</li>
           </ul>
@@ -931,15 +923,6 @@ export default function App() {
     [blockedIds, feedback, profile, rejectedIds],
   );
 
-  const goDashboard = () => setMode("dashboard");
-  const resetDemo = () => {
-    setStep("groups");
-    setAccepted(null);
-    setRejectedIds([]);
-    setBlockedIds([]);
-    setFeedback([]);
-    setCalendarConnected(false);
-  };
   const goHome = () => {
     setMode("mobile");
     setStep("groups");
@@ -971,6 +954,10 @@ export default function App() {
   const resetRejected = () => {
     setRejectedIds([]);
     setBlockedIds([]);
+  };
+  const cancelAccepted = () => {
+    setAccepted(null);
+    setStep("groups");
   };
   const planWithFriend = () => {
     const next = accepted ?? suggestions[0] ?? sessions[0];
@@ -1037,6 +1024,7 @@ export default function App() {
         <CalendarScreen
           accepted={accepted}
           feedback={feedback}
+          onCancelAccepted={cancelAccepted}
           onFeedback={() => (accepted ? setStep("feedback") : setStep("groups"))}
           onConnectPage={() => setStep("calendarConnect")}
           onManual={() => setStep("manualAvailability")}
@@ -1065,7 +1053,7 @@ export default function App() {
       return (
         <ConfirmedScreen
           confirmed={accepted}
-          onCancel={() => setStep("groups")}
+          onCancel={cancelAccepted}
           onFeedback={() => setStep("feedback")}
           onReport={() => {
             setBlockedIds((current) => [...current, accepted.id]);
@@ -1091,7 +1079,7 @@ export default function App() {
           <div className="phone-frame">
             <StatusBar />
             <div className="screen-pad">
-              {step !== "welcome" ? <AppHeader onDashboard={goDashboard} onResetDemo={resetDemo} step={step} /> : null}
+              {step !== "welcome" ? <AppHeader /> : null}
               {isOnboarding(step) ? <Progress step={step} /> : null}
               {renderScreen()}
             </div>

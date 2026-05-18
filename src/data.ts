@@ -1,11 +1,10 @@
 import type { ActivitySession, AvailabilitySlot, ComfortKey, Interest, ResidentProfile } from "./types";
 
 export const brandAssets = {
-  // Replace these with exported final assets later. Current URLs are temporary Figma MCP assets.
   logoWordmark: "Gesellig",
-  heroImage: "https://www.figma.com/api/mcp/asset/58671598-5f0c-4cc5-a796-4246eb3fc022",
-  cityCardImage: "https://www.figma.com/api/mcp/asset/4384670a-a387-4af9-8206-69c81d48fbd0",
-  profileCardImage: "https://www.figma.com/api/mcp/asset/762e0a2d-e4d4-41e2-9141-4ede891e1727",
+  heroImage: "https://images.unsplash.com/photo-1543807535-eceef0bc6599?w=800&q=80",
+  cityCardImage: "https://images.unsplash.com/photo-1555109307-f7d9da25c244?w=800&q=80",
+  profileCardImage: "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=800&q=80",
 };
 
 export const interests: { id: Interest; label: string }[] = [
@@ -69,13 +68,13 @@ export const sessions: ActivitySession[] = [
   },
   {
     id: "museum-coffee",
-    title: "Museum visit with coffee after",
+    title: "Depot Boijmans visit + cafe",
     interest: "museums",
-    locationName: "Depot Boijmans cafe",
+    locationName: "Depot Boijmans Van Beuningen",
     neighborhood: "Museumpark",
     isPublicPlace: true,
     isCommunityHosted: true,
-    hostName: "Museumpark desk",
+    hostName: "Museumpark vrijwilligers",
     groupSize: "small_group",
     capacity: 4,
     confirmedCount: 2,
@@ -86,7 +85,7 @@ export const sessions: ActivitySession[] = [
     id: "coffee-study",
     title: "Quiet coffee and study table",
     interest: "coffee",
-    locationName: "Central Library cafe",
+    locationName: "Centrale Bibliotheek",
     neighborhood: "Centrum",
     isPublicPlace: true,
     isCommunityHosted: true,
@@ -99,20 +98,50 @@ export const sessions: ActivitySession[] = [
   },
   {
     id: "padel-intro",
-    title: "Beginner padel court",
+    title: "Beginner padel — no experience needed",
     interest: "padel",
-    locationName: "Sportpark Noord",
-    neighborhood: "Noord",
+    locationName: "Sportcentrum West",
+    neighborhood: "Delfshaven",
     isPublicPlace: true,
     isCommunityHosted: false,
     groupSize: "small_group",
     capacity: 4,
-    confirmedCount: 4,
+    confirmedCount: 2,
     time: availabilityOptions[1],
+    status: "open",
+  },
+  {
+    id: "board-games-katendrecht",
+    title: "Board games at Kaapse Brouwers",
+    interest: "board_games",
+    locationName: "Kaapse Brouwers",
+    neighborhood: "Katendrecht",
+    isPublicPlace: true,
+    isCommunityHosted: true,
+    hostName: "Wijkraad Katendrecht",
+    groupSize: "small_group",
+    capacity: 5,
+    confirmedCount: 3,
+    time: availabilityOptions[2],
+    status: "open",
+  },
+  {
+    id: "cooking-charlois",
+    title: "Saturday cooking swap",
+    interest: "cooking",
+    locationName: "Buurthuis Charlois",
+    neighborhood: "Charlois",
+    isPublicPlace: true,
+    isCommunityHosted: true,
+    hostName: "Stichting Buurtwerk",
+    groupSize: "small_group",
+    capacity: 6,
+    confirmedCount: 4,
+    time: availabilityOptions[2],
     status: "open",
   },
 ];
 
-export const neighborhoods = ["Kralingen", "Centrum", "Delfshaven", "Noord", "Museumpark"];
+export const neighborhoods = ["Kralingen", "Centrum", "Delfshaven", "Noord", "Museumpark", "Katendrecht", "Charlois", "Feijenoord", "Hillegersberg"];
 
 export const routines = ["Evening walk", "Coffee break", "Museum visit", "Study block", "Weekend market"];

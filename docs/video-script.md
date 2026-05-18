@@ -39,6 +39,7 @@ Visual:
 - Enter or keep alias.
 - Choose walking, coffee, museums.
 - Toggle small groups, public places, hosted events.
+- Choose whether to connect a calendar or set time slots manually.
 
 ### 1:20-1:55 — Matching
 
@@ -48,7 +49,6 @@ Voiceover:
 
 Visual:
 
-- Add Thursday evening availability.
 - Show three suggestions.
 - Open or focus on match reasons.
 - Accept "Evening walk around Kralingse Plas."
@@ -63,6 +63,7 @@ Visual:
 
 - Show confirmed activity screen.
 - Point to public place, host, spots, cancel/report actions.
+- Open Calendar to show the accepted meet-up.
 - Submit feedback and meet-again signal.
 
 ### 2:25-3:00 — Municipality Impact

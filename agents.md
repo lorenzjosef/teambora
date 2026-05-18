@@ -61,7 +61,10 @@ Supabase can be represented through data shapes and future architecture notes, b
 - Keep dashboard professional and aggregate-only.
 - Keep design mobile-first and close to the Figma direction: warm canvas, black primary actions, orange accent, large iOS-style cards, restrained typography.
 - Use reusable style primitives from `src/styles.css`; avoid one-off page styling.
-- Keep replaceable Figma image URLs centralized in `src/data.ts` under `brandAssets`.
+- Keep replaceable image URLs centralized in `src/data.ts` under `brandAssets`.
+- Keep Groups as the mobile app home screen.
+- Keep bottom navigation limited to Home, Calendar, and Friends.
+- Calendar should show only signed-up or attended meet-ups, not free/busy availability.
 
 ## Matching Guidance
 
