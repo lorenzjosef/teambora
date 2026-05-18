@@ -5,7 +5,6 @@ import {
   Check,
   Clock3,
   Coffee,
-  Flag,
   HeartHandshake,
   Home,
   MapPin,
@@ -752,14 +751,12 @@ function FriendsScreen({ feedback }: { feedback: Feedback[] }) {
 }
 
 type BottomNavProps = {
-  onDashboard: () => void;
   onFriends: () => void;
-  onGroups: () => void;
   onHome: () => void;
   onCalendar: () => void;
 };
 
-function BottomNav({ onCalendar, onDashboard, onFriends, onGroups, onHome }: BottomNavProps) {
+function BottomNav({ onCalendar, onFriends, onHome }: BottomNavProps) {
   return (
     <nav className="bottom-nav">
       <button className="grid justify-items-center gap-1" onClick={onHome} type="button">
@@ -770,17 +767,9 @@ function BottomNav({ onCalendar, onDashboard, onFriends, onGroups, onHome }: Bot
         <CalendarDays size={16} />
         Calendar
       </button>
-      <button className="grid justify-items-center gap-1" onClick={onGroups} type="button">
-        <Users size={16} />
-        Groups
-      </button>
       <button className="grid justify-items-center gap-1" onClick={onFriends} type="button">
         <UserRound size={16} />
         Friends
-      </button>
-      <button className="grid justify-items-center gap-1" onClick={onDashboard} type="button">
-        <Flag size={16} />
-        Impact
       </button>
     </nav>
   );
@@ -908,10 +897,6 @@ export default function App() {
     setMode("mobile");
     setStep("calendar");
   };
-  const goGroups = () => {
-    setMode("mobile");
-    setStep("groups");
-  };
   const goFriends = () => {
     setMode("mobile");
     setStep("friends");
@@ -1035,9 +1020,7 @@ export default function App() {
             {!isOnboarding(step) ? (
               <BottomNav
                 onCalendar={goCalendar}
-                onDashboard={goDashboard}
                 onFriends={goFriends}
-                onGroups={goGroups}
                 onHome={goHome}
               />
             ) : null}
