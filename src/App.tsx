@@ -124,20 +124,26 @@ function Progress({ step }: { step: Step }) {
 }
 
 type HeaderProps = {
+  onResetDemo: () => void;
   step: Step;
   onDashboard: () => void;
 };
 
-function AppHeader({ step, onDashboard }: HeaderProps) {
+function AppHeader({ onDashboard, onResetDemo, step }: HeaderProps) {
   return (
     <header className="mb-5 flex items-center justify-between">
       <Logo />
       <div className="flex items-center gap-2">
         <DutchFlag />
         {step !== "welcome" ? (
-          <button className="cta-secondary h-9 px-3" onClick={onDashboard} type="button">
-            Dashboard
-          </button>
+          <>
+            <button className="cta-secondary h-9 px-3" onClick={onResetDemo} type="button">
+              Reset
+            </button>
+            <button className="cta-secondary h-9 px-3" onClick={onDashboard} type="button">
+              Dashboard
+            </button>
+          </>
         ) : null}
       </div>
     </header>
@@ -147,7 +153,7 @@ function AppHeader({ step, onDashboard }: HeaderProps) {
 function WelcomeScreen({ onNext }: { onNext: () => void }) {
   return (
     <section className="flex flex-1 flex-col gap-6">
-      <div className="relative -mx-5 -mt-2 min-h-[392px] overflow-hidden bg-orange">
+      <div className="relative -mx-5 -mt-2 flex-1 overflow-hidden bg-orange">
         <div className="absolute inset-0 bg-orange" />
         <div className="absolute -left-24 top-0 h-72 w-72 rounded-full border-[42px] border-white/18" />
         <div className="absolute -right-20 bottom-10 h-60 w-60 rounded-full border-[38px] border-white/20" />
@@ -538,9 +544,12 @@ type SuggestionsScreenProps = {
   suggestions: ActivitySuggestion[];
   onAccept: (suggestion: ActivitySuggestion) => void;
   onReject: (id: string) => void;
+  signedUpId?: string;
 };
 
-function SuggestionsScreen({ onAccept, onReject, onResetRejected, suggestions }: SuggestionsScreenProps) {
+function SuggestionsScreen({ onAccept, onReject, onResetRejected, signedUpId, suggestions }: SuggestionsScreenProps) {
+  const visibleSuggestions = suggestions.filter((suggestion) => suggestion.id !== signedUpId);
+
   return (
     <section className="space-y-5">
       <div>
@@ -548,9 +557,9 @@ function SuggestionsScreen({ onAccept, onReject, onResetRejected, suggestions }:
         <h1 className="title-lg">Groups near you</h1>
         <p className="body-copy mt-2">Ranked by interest, time, comfort, and rough travel radius.</p>
       </div>
-      {suggestions.length > 0 ? (
+      {visibleSuggestions.length > 0 ? (
         <div className="grid gap-4">
-          {suggestions.map((suggestion) => (
+          {visibleSuggestions.map((suggestion) => (
             <SuggestionCard
               key={suggestion.id}
               onAccept={onAccept}
@@ -715,7 +724,11 @@ function CalendarScreen({
               <p className="text-[12px] text-muted">{formatTime(accepted.time)}</p>
               <p className="text-[12px] text-muted">{accepted.locationName}</p>
             </div>
-            <CalendarDays className="text-orange" size={24} />
+            {attendedIds.has(accepted.id) ? (
+              <Check className="text-green" size={24} />
+            ) : (
+              <CalendarDays className="text-orange" size={24} />
+            )}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button className="cta-secondary" onClick={onOpenAccepted} type="button">
@@ -839,7 +852,7 @@ function Dashboard({ acceptedCount, completedCount, feedback, onMobile, rejected
         <div className="flex flex-col items-end gap-3">
           <DutchFlag />
           <button className="cta-secondary" onClick={onMobile} type="button">
-            Mobile app
+            Groups
           </button>
         </div>
       </div>
@@ -919,6 +932,14 @@ export default function App() {
   );
 
   const goDashboard = () => setMode("dashboard");
+  const resetDemo = () => {
+    setStep("groups");
+    setAccepted(null);
+    setRejectedIds([]);
+    setBlockedIds([]);
+    setFeedback([]);
+    setCalendarConnected(false);
+  };
   const goHome = () => {
     setMode("mobile");
     setStep("groups");
@@ -1005,6 +1026,7 @@ export default function App() {
           onAccept={acceptSuggestion}
           onReject={rejectSuggestion}
           onResetRejected={resetRejected}
+          signedUpId={accepted?.id}
           suggestions={suggestions}
         />
       );
@@ -1029,6 +1051,7 @@ export default function App() {
           onAccept={acceptSuggestion}
           onReject={rejectSuggestion}
           onResetRejected={resetRejected}
+          signedUpId={accepted?.id}
           suggestions={suggestions}
         />
       );
@@ -1068,7 +1091,7 @@ export default function App() {
           <div className="phone-frame">
             <StatusBar />
             <div className="screen-pad">
-              {step !== "welcome" ? <AppHeader onDashboard={goDashboard} step={step} /> : null}
+              {step !== "welcome" ? <AppHeader onDashboard={goDashboard} onResetDemo={resetDemo} step={step} /> : null}
               {isOnboarding(step) ? <Progress step={step} /> : null}
               {renderScreen()}
             </div>
@@ -1086,7 +1109,10 @@ export default function App() {
             acceptedCount={accepted ? 1 : 0}
             completedCount={feedback.length}
             feedback={feedback}
-            onMobile={() => setMode("mobile")}
+            onMobile={() => {
+              setMode("mobile");
+              setStep("groups");
+            }}
             rejectedCount={rejectedIds.length + blockedIds.length}
           />
         )}
