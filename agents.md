@@ -2,7 +2,7 @@
 
 ## Project
 
-This repo contains a one-day prototype for **Samen Tijd**, an opt-in social activity app for Dutch municipalities.
+This repo contains a one-day prototype for **Gesellig**, an opt-in social activity app for Dutch municipalities.
 
 The product helps residents turn free moments into real-life shared activities. It must not feel like a loneliness app, diagnosis tool, surveillance system, or dating app.
 
@@ -22,6 +22,8 @@ Always preserve this message:
 - Do not use dating-app patterns such as swiping, attractiveness ranking, or open profile browsing.
 - Do not add real AI/LLM calls unless explicitly requested.
 - Do not require real names for the prototype.
+- Do not use Mozi branding in app UI.
+- Do not commit `Supabase_API_KEY.txt`, `.env`, or `.vercel`.
 
 ## Prototype Priorities
 
@@ -56,6 +58,8 @@ Supabase can be represented through data shapes and future architecture notes, b
 - Make safe public settings visible in the UI.
 - Use icons and compact controls where useful.
 - Keep dashboard professional and aggregate-only.
+- Keep design mobile-first and close to the Figma direction: warm canvas, black primary actions, orange accent, large iOS-style cards, restrained typography.
+- Use reusable style primitives from `src/styles.css`; avoid one-off page styling.
 
 ## Matching Guidance
 
@@ -75,7 +79,7 @@ Every suggestion should explain why it appears. Good examples:
 - "Fits your Thursday evening availability."
 - "Public location within your travel radius."
 - "Small-group setting matches your comfort choice."
-- "You both chose museums."
+- "3 residents nearby chose museums."
 
 Bad examples:
 
@@ -118,6 +122,8 @@ Never show individual-level municipal records in the prototype.
 - Keep components small enough to adjust quickly during demo prep.
 - Do not introduce dependencies unless they clearly speed up the prototype.
 - Preserve responsive behavior for mobile and desktop.
+- Use `npm run build` before committing implementation milestones.
+- Use `npm run lint` before committing quality or deploy-readiness milestones.
 
 ## Testing Checklist
 
