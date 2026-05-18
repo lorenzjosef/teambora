@@ -100,7 +100,7 @@ input {
   }
 
   .bottom-nav {
-    @apply mt-auto grid grid-cols-4 gap-1 border-t border-line px-4 pb-4 pt-3 text-[10px] text-muted;
+    @apply mt-auto grid grid-cols-5 gap-1 border-t border-line px-3 pb-4 pt-3 text-[10px] text-muted;
   }
 
   .dashboard-panel {

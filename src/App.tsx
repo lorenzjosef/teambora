@@ -10,6 +10,7 @@ import {
   Home,
   MapPin,
   ShieldCheck,
+  UserRound,
   Users,
   X,
 } from "lucide-react";
@@ -26,12 +27,36 @@ import {
 import { rankSuggestions } from "./matching";
 import type { ActivitySuggestion, AvailabilitySlot, ComfortKey, Feedback, Interest, ResidentProfile } from "./types";
 
-type Step = "welcome" | "profile" | "preferences" | "availability" | "suggestions" | "confirmed" | "feedback";
+type Step =
+  | "welcome"
+  | "profile"
+  | "interests"
+  | "comfort"
+  | "calendarConnect"
+  | "manualAvailability"
+  | "home"
+  | "calendar"
+  | "groups"
+  | "friends"
+  | "confirmed"
+  | "feedback";
 type ViewMode = "mobile" | "dashboard";
 
-const steps: Step[] = ["welcome", "profile", "preferences", "availability", "suggestions", "confirmed", "feedback"];
+const onboardingSteps: Step[] = ["welcome", "profile", "interests", "comfort", "calendarConnect", "manualAvailability"];
+const isOnboarding = (step: Step) => onboardingSteps.includes(step);
 
 const formatTime = (slot: AvailabilitySlot) => `${slot.day}, ${slot.startTime}-${slot.endTime}`;
+
+const liveWeek = Array.from({ length: 7 }, (_, index) => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + index);
+  return {
+    date,
+    day: date.toLocaleDateString("en-US", { weekday: "short" }),
+    monthDay: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+  };
+});
 
 function DutchFlag() {
   return (
@@ -85,10 +110,11 @@ function StatusBar() {
 }
 
 function Progress({ step }: { step: Step }) {
-  const index = steps.indexOf(step);
+  const activeSteps = isOnboarding(step) ? onboardingSteps : ["home", "calendar", "groups", "friends"];
+  const index = Math.max(activeSteps.indexOf(step), 0);
   return (
     <div className="flex items-center justify-center gap-1 py-3">
-      {steps.slice(0, -1).map((item, itemIndex) => (
+      {activeSteps.map((item, itemIndex) => (
         <span
           className={`h-1.5 rounded-full transition-all ${itemIndex <= index ? "w-5 bg-orange" : "w-1.5 bg-line"}`}
           key={item}
@@ -123,8 +149,8 @@ function WelcomeScreen({ onNext }: { onNext: () => void }) {
   return (
     <section className="flex flex-1 flex-col justify-between gap-6">
       <div className="relative -mx-5 -mt-2 min-h-[392px] overflow-hidden bg-orange">
-        <img alt="" className="figma-image object-top" src={brandAssets.heroImage} />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/10 to-black/55" />
+        <img alt="" className="absolute inset-0 h-full w-full scale-[1.08] object-cover object-[52%_18%]" src={brandAssets.heroImage} />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/70" />
         <div className="absolute left-5 top-5">
           <DutchFlag />
         </div>
@@ -133,7 +159,7 @@ function WelcomeScreen({ onNext }: { onNext: () => void }) {
         </div>
         <div className="absolute inset-x-6 bottom-7 text-white">
           <div className="mb-4 brand-mark bg-white text-orange shadow-card">G</div>
-          <h1 className="title-xl max-w-[260px]">Make free moments social.</h1>
+          <h1 className="title-xl max-w-[285px]">Make free moments social.</h1>
           <p className="mt-3 max-w-[270px] text-[14px] leading-5 text-white/85">
             Find a walk, coffee, museum visit, or local table that fits your time and comfort.
           </p>
@@ -189,19 +215,13 @@ function ProfileScreen({ profile, setProfile, onNext }: ProfileScreenProps) {
           </select>
         </label>
         <div className="soft-card">
-          <div className="flex gap-3">
-            <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-[22px] bg-orangeSoft">
-              <img alt="" className="figma-image object-top" src={brandAssets.profileCardImage} />
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-ink/35" />
-            </div>
-            <div className="flex min-w-0 items-start gap-3">
-              <ShieldCheck className="mt-0.5 shrink-0 text-green" size={20} />
-              <div>
-                <p className="text-[14px] font-semibold">Privacy-first by design</p>
-                <p className="body-copy mt-1">
-                  Municipality dashboards show grouped trends only, never individual resident details.
-                </p>
-              </div>
+          <div className="flex min-w-0 items-start gap-3">
+            <ShieldCheck className="mt-0.5 shrink-0 text-green" size={28} />
+            <div>
+              <p className="text-[18px] font-semibold">Privacy-first by design</p>
+              <p className="body-copy mt-1">
+                Municipality dashboards show grouped trends only, never individual resident details.
+              </p>
             </div>
           </div>
         </div>
@@ -219,18 +239,13 @@ type PreferencesScreenProps = {
   onNext: () => void;
 };
 
-function PreferencesScreen({ profile, setProfile, onNext }: PreferencesScreenProps) {
+function InterestsScreen({ profile, setProfile, onNext }: PreferencesScreenProps) {
   const toggleInterest = (interest: Interest) => {
     const next = profile.interests.includes(interest)
       ? profile.interests.filter((item) => item !== interest)
       : [...profile.interests, interest];
     setProfile({ ...profile, interests: next });
   };
-
-  const toggleComfort = (key: ComfortKey) => {
-    setProfile({ ...profile, comfort: { ...profile.comfort, [key]: !profile.comfort[key] } });
-  };
-
   return (
     <section className="space-y-6">
       <div>
@@ -253,20 +268,40 @@ function PreferencesScreen({ profile, setProfile, onNext }: PreferencesScreenPro
           ))}
         </div>
       </div>
+      <button className="cta w-full" onClick={onNext} type="button">
+        Continue
+        <ArrowRight size={17} />
+      </button>
+    </section>
+  );
+}
+
+function ComfortScreen({ profile, setProfile, onNext }: PreferencesScreenProps) {
+  const toggleComfort = (key: ComfortKey) => {
+    setProfile({ ...profile, comfort: { ...profile.comfort, [key]: !profile.comfort[key] } });
+  };
+
+  return (
+    <section className="space-y-6">
+      <div>
+        <div className="top-line mb-5" />
+        <h1 className="title-lg">What feels comfortable?</h1>
+        <p className="body-copy mt-2">These choices filter suggestions before anything is shown.</p>
+      </div>
       <div className="grid gap-3">
         {comfortOptions.map((item) => (
           <button className="soft-card text-left" key={item.id} onClick={() => toggleComfort(item.id)} type="button">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-[14px] font-semibold">{item.label}</p>
-                <p className="text-[12px] text-muted">{item.helper}</p>
+                <p className="text-[18px] font-semibold">{item.label}</p>
+                <p className="text-[15px] text-muted">{item.helper}</p>
               </div>
               <span
-                className={`grid h-7 w-7 place-items-center rounded-full ${
+                className={`grid h-11 w-11 place-items-center rounded-full ${
                   profile.comfort[item.id] ? "bg-orange text-white" : "bg-line text-muted"
                 }`}
               >
-                {profile.comfort[item.id] ? <Check size={16} /> : null}
+                {profile.comfort[item.id] ? <Check size={22} /> : null}
               </span>
             </div>
           </button>
@@ -280,21 +315,60 @@ function PreferencesScreen({ profile, setProfile, onNext }: PreferencesScreenPro
   );
 }
 
+type CalendarConnectScreenProps = {
+  calendarConnected: boolean;
+  onConnect: () => void;
+  onManual: () => void;
+};
+
+function CalendarConnectScreen({ calendarConnected, onConnect, onManual }: CalendarConnectScreenProps) {
+  return (
+    <section className="space-y-6">
+      <div>
+        <div className="top-line mb-5" />
+        <h1 className="title-lg">Connect your calendar?</h1>
+        <p className="body-copy mt-2">Optional. You can skip and set free windows manually.</p>
+      </div>
+      <div className="soft-card space-y-4">
+        <div className="grid h-44 grid-cols-7 gap-1 rounded-[22px] bg-canvas p-3">
+          {liveWeek.map((day, index) => (
+            <div
+              className={`rounded-2xl p-2 text-center text-[11px] ${
+                index === 1 || index === 3 ? "bg-orange text-white" : "bg-white text-muted"
+              }`}
+              key={day.monthDay}
+            >
+              <p className="font-semibold">{day.day}</p>
+              <p className="mt-1">{day.monthDay.split(" ")[1]}</p>
+              {(index === 1 || index === 3) && <p className="mt-5 text-[10px]">free</p>}
+            </div>
+          ))}
+        </div>
+        <div className="flex items-start gap-3">
+          <ShieldCheck className="mt-0.5 text-green" size={22} />
+          <p className="text-[13px] leading-5 text-muted">
+            Demo import only reads free windows. Production needs explicit consent, revocation, and deletion.
+          </p>
+        </div>
+      </div>
+      <button className="cta w-full" onClick={onConnect} type="button">
+        {calendarConnected ? "Calendar connected" : "Connect calendar"}
+        <CalendarDays size={17} />
+      </button>
+      <button className="cta-secondary w-full" onClick={onManual} type="button">
+        Set times manually
+      </button>
+    </section>
+  );
+}
+
 type AvailabilityScreenProps = {
   profile: ResidentProfile;
   setProfile: (profile: ResidentProfile) => void;
   onNext: () => void;
-  calendarConnected: boolean;
-  setCalendarConnected: (connected: boolean) => void;
 };
 
-function AvailabilityScreen({
-  calendarConnected,
-  profile,
-  setCalendarConnected,
-  setProfile,
-  onNext,
-}: AvailabilityScreenProps) {
+function ManualAvailabilityScreen({ profile, setProfile, onNext }: AvailabilityScreenProps) {
   const toggleSlot = (slot: AvailabilitySlot) => {
     const exists = profile.availability.some((item) => item.label === slot.label);
     setProfile({
@@ -314,52 +388,15 @@ function AvailabilityScreen({
     });
   };
 
-  const toggleCalendarConnection = () => {
-    const nextConnected = !calendarConnected;
-    setCalendarConnected(nextConnected);
-
-    if (nextConnected) {
-      const importedSlots = [availabilityOptions[0], availabilityOptions[1]];
-      const merged = importedSlots.reduce<AvailabilitySlot[]>((current, slot) => {
-        return current.some((item) => item.label === slot.label) ? current : [...current, slot];
-      }, profile.availability);
-      setProfile({ ...profile, availability: merged });
-    }
-  };
-
   return (
     <section className="space-y-6">
       <div>
         <div className="top-line mb-5" />
-        <h1 className="title-lg">When could a routine become social?</h1>
-        <p className="body-copy mt-2">Add time manually or preview a consented calendar import.</p>
+        <h1 className="title-lg">Set your free windows</h1>
+        <p className="body-copy mt-2">Choose times you would be open to making social.</p>
       </div>
       <div className="soft-card space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-orangeSoft text-orange">
-              <CalendarDays size={19} />
-            </span>
-            <div>
-              <p className="text-[14px] font-semibold">Calendar preview</p>
-              <p className="text-[12px] text-muted">Future opt-in sync, demo uses local slots.</p>
-            </div>
-          </div>
-          <button
-            className={`rounded-full px-3 py-1.5 text-[12px] font-semibold ${
-              calendarConnected ? "bg-orange text-white" : "bg-canvas text-ink"
-            }`}
-            onClick={toggleCalendarConnection}
-            type="button"
-          >
-            {calendarConnected ? "Connected" : "Connect"}
-          </button>
-        </div>
-        {calendarConnected ? (
-          <p className="rounded-2xl bg-canvas px-3 py-2 text-[12px] text-muted">
-            Demo import added two free windows. In production this would require explicit consent and revocation.
-          </p>
-        ) : null}
+        <p className="text-[13px] font-semibold">This week</p>
         <div className="grid grid-cols-4 gap-2">
           {availabilityOptions.map((slot) => {
             const active = profile.availability.some((item) => item.label === slot.label);
@@ -614,14 +651,148 @@ function FeedbackScreen({ onSubmit, suggestionId }: FeedbackScreenProps) {
   );
 }
 
+function HomeScreen({
+  accepted,
+  feedback,
+  onCalendar,
+  onFriends,
+  onGroups,
+}: {
+  accepted: ActivitySuggestion | null;
+  feedback: Feedback[];
+  onCalendar: () => void;
+  onFriends: () => void;
+  onGroups: () => void;
+}) {
+  return (
+    <section className="space-y-5">
+      <div>
+        <div className="top-line mb-5" />
+        <h1 className="title-lg">Good afternoon from Rotterdam</h1>
+        <p className="body-copy mt-2">Turn one free moment into something shared.</p>
+      </div>
+      <div className="relative h-52 overflow-hidden rounded-[28px] bg-orange">
+        <img alt="" className="figma-image object-top" src={brandAssets.cityCardImage} />
+        <div className="absolute inset-0 bg-gradient-to-b from-ink/5 via-ink/15 to-ink/70" />
+        <div className="absolute bottom-4 left-4 right-4 text-white">
+          <p className="text-[13px] font-semibold">Suggested next</p>
+          <h2 className="mt-1 text-[22px] font-semibold leading-tight">
+            {accepted ? accepted.title : "Find a small public activity"}
+          </h2>
+          <button className="mt-4 cta bg-white text-ink" onClick={onGroups} type="button">
+            View groups
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <button className="soft-card text-left" onClick={onCalendar} type="button">
+          <CalendarDays className="text-orange" size={22} />
+          <p className="mt-3 text-[15px] font-semibold">Calendar</p>
+          <p className="text-[12px] text-muted">Manage free windows</p>
+        </button>
+        <button className="soft-card text-left" onClick={onFriends} type="button">
+          <UserRound className="text-orange" size={22} />
+          <p className="mt-3 text-[15px] font-semibold">Friends</p>
+          <p className="text-[12px] text-muted">{feedback.some((item) => item.wantsRepeat) ? "1 repeat signal" : "Meet-again list"}</p>
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function CalendarScreen({
+  calendarConnected,
+  onConnectPage,
+  onManual,
+  profile,
+}: {
+  calendarConnected: boolean;
+  onConnectPage: () => void;
+  onManual: () => void;
+  profile: ResidentProfile;
+}) {
+  return (
+    <section className="space-y-5">
+      <div>
+        <div className="top-line mb-5" />
+        <h1 className="title-lg">Your live week</h1>
+        <p className="body-copy mt-2">{calendarConnected ? "Calendar preview is connected for demo." : "No calendar connected. Manual slots still work."}</p>
+      </div>
+      <div className="soft-card">
+        <div className="grid grid-cols-7 gap-1">
+          {liveWeek.map((day) => {
+            const active = profile.availability.some((slot) => slot.day.startsWith(day.day));
+            return (
+              <div className={`calendar-cell min-h-24 ${active ? "calendar-cell-active" : ""}`} key={day.monthDay}>
+                <span className="font-semibold">{day.day}</span>
+                <span>{day.monthDay}</span>
+                {active ? <span className="mt-auto text-orange">free</span> : <span className="mt-auto text-muted">busy</span>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="grid gap-2">
+        {profile.availability.map((slot) => (
+          <div className="soft-card flex items-center justify-between" key={slot.label}>
+            <div>
+              <p className="text-[14px] font-semibold">{slot.label}</p>
+              <p className="text-[12px] text-muted">{formatTime(slot)}</p>
+            </div>
+            <Check className="text-orange" size={18} />
+          </div>
+        ))}
+      </div>
+      <button className="cta w-full" onClick={onConnectPage} type="button">
+        Calendar connection
+      </button>
+      <button className="cta-secondary w-full" onClick={onManual} type="button">
+        Edit manual slots
+      </button>
+    </section>
+  );
+}
+
+function FriendsScreen({ feedback }: { feedback: Feedback[] }) {
+  const hasRepeat = feedback.some((item) => item.wantsRepeat);
+  const friends = hasRepeat
+    ? ["Sam from the evening walk", "Mila from museum coffee"]
+    : ["Sam from nearby walks", "Mila from museum coffee"];
+
+  return (
+    <section className="space-y-5">
+      <div>
+        <div className="top-line mb-5" />
+        <h1 className="title-lg">People you may meet again</h1>
+        <p className="body-copy mt-2">Longer-term connections build from repeat activities, not profile browsing.</p>
+      </div>
+      {friends.map((friend, index) => (
+        <div className="soft-card flex items-center justify-between" key={friend}>
+          <div className="flex items-center gap-3">
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-orangeSoft text-[16px] font-semibold text-orange">
+              {friend[0]}
+            </div>
+            <div>
+              <p className="text-[15px] font-semibold">{friend}</p>
+              <p className="text-[12px] text-muted">{index === 0 && hasRepeat ? "Meet-again preference saved" : "Suggested through shared activities"}</p>
+            </div>
+          </div>
+          <button className="cta-secondary h-9 px-3" type="button">Plan</button>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 type BottomNavProps = {
   onDashboard: () => void;
+  onFriends: () => void;
   onGroups: () => void;
   onHome: () => void;
   onCalendar: () => void;
 };
 
-function BottomNav({ onCalendar, onDashboard, onGroups, onHome }: BottomNavProps) {
+function BottomNav({ onCalendar, onDashboard, onFriends, onGroups, onHome }: BottomNavProps) {
   return (
     <nav className="bottom-nav">
       <button className="grid justify-items-center gap-1" onClick={onHome} type="button">
@@ -635,6 +806,10 @@ function BottomNav({ onCalendar, onDashboard, onGroups, onHome }: BottomNavProps
       <button className="grid justify-items-center gap-1" onClick={onGroups} type="button">
         <Users size={16} />
         Groups
+      </button>
+      <button className="grid justify-items-center gap-1" onClick={onFriends} type="button">
+        <UserRound size={16} />
+        Friends
       </button>
       <button className="grid justify-items-center gap-1" onClick={onDashboard} type="button">
         <Flag size={16} />
@@ -760,15 +935,28 @@ export default function App() {
   const goDashboard = () => setMode("dashboard");
   const goHome = () => {
     setMode("mobile");
-    setStep("suggestions");
+    setStep("home");
   };
   const goCalendar = () => {
     setMode("mobile");
-    setStep("availability");
+    setStep("calendar");
   };
   const goGroups = () => {
     setMode("mobile");
-    setStep("suggestions");
+    setStep("groups");
+  };
+  const goFriends = () => {
+    setMode("mobile");
+    setStep("friends");
+  };
+  const importCalendarSlots = () => {
+    setCalendarConnected(true);
+    const importedSlots = [availabilityOptions[0], availabilityOptions[1]];
+    const merged = importedSlots.reduce<AvailabilitySlot[]>((current, slot) => {
+      return current.some((item) => item.label === slot.label) ? current : [...current, slot];
+    }, profile.availability);
+    setProfile({ ...profile, availability: merged });
+    setStep("home");
   };
 
   const acceptSuggestion = (suggestion: ActivitySuggestion) => {
@@ -789,39 +977,78 @@ export default function App() {
     }
 
     if (step === "profile") {
-      return <ProfileScreen onNext={() => setStep("preferences")} profile={profile} setProfile={setProfile} />;
+      return <ProfileScreen onNext={() => setStep("interests")} profile={profile} setProfile={setProfile} />;
     }
 
-    if (step === "preferences") {
-      return <PreferencesScreen onNext={() => setStep("availability")} profile={profile} setProfile={setProfile} />;
+    if (step === "interests") {
+      return <InterestsScreen onNext={() => setStep("comfort")} profile={profile} setProfile={setProfile} />;
     }
 
-    if (step === "availability") {
+    if (step === "comfort") {
+      return <ComfortScreen onNext={() => setStep("calendarConnect")} profile={profile} setProfile={setProfile} />;
+    }
+
+    if (step === "calendarConnect") {
       return (
-        <AvailabilityScreen
+        <CalendarConnectScreen
           calendarConnected={calendarConnected}
-          onNext={() => setStep("suggestions")}
+          onConnect={importCalendarSlots}
+          onManual={() => setStep("manualAvailability")}
+        />
+      );
+    }
+
+    if (step === "manualAvailability") {
+      return (
+        <ManualAvailabilityScreen
+          onNext={() => setStep("home")}
           profile={profile}
-          setCalendarConnected={setCalendarConnected}
           setProfile={setProfile}
         />
       );
     }
 
-    if (step === "suggestions") {
+    if (step === "home") {
+      return (
+        <HomeScreen
+          accepted={accepted}
+          feedback={feedback}
+          onCalendar={goCalendar}
+          onFriends={goFriends}
+          onGroups={goGroups}
+        />
+      );
+    }
+
+    if (step === "calendar") {
+      return (
+        <CalendarScreen
+          calendarConnected={calendarConnected}
+          onConnectPage={() => setStep("calendarConnect")}
+          onManual={() => setStep("manualAvailability")}
+          profile={profile}
+        />
+      );
+    }
+
+    if (step === "groups") {
       return <SuggestionsScreen onAccept={acceptSuggestion} onReject={rejectSuggestion} suggestions={suggestions} />;
+    }
+
+    if (step === "friends") {
+      return <FriendsScreen feedback={feedback} />;
     }
 
     if (step === "confirmed" && accepted) {
       return (
         <ConfirmedScreen
           confirmed={accepted}
-          onCancel={() => setStep("suggestions")}
+          onCancel={() => setStep("groups")}
           onFeedback={() => setStep("feedback")}
           onReport={() => {
             setBlockedIds((current) => [...current, accepted.id]);
             setAccepted(null);
-            setStep("suggestions");
+            setStep("groups");
           }}
         />
       );
@@ -843,11 +1070,17 @@ export default function App() {
             <StatusBar />
             <div className="screen-pad">
               {step !== "welcome" ? <AppHeader onDashboard={goDashboard} step={step} /> : null}
-              <Progress step={step} />
+              {isOnboarding(step) ? <Progress step={step} /> : null}
               {renderScreen()}
             </div>
-            {step !== "welcome" ? (
-              <BottomNav onCalendar={goCalendar} onDashboard={goDashboard} onGroups={goGroups} onHome={goHome} />
+            {!isOnboarding(step) ? (
+              <BottomNav
+                onCalendar={goCalendar}
+                onDashboard={goDashboard}
+                onFriends={goFriends}
+                onGroups={goGroups}
+                onHome={goHome}
+              />
             ) : null}
           </div>
         ) : (
