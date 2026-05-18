@@ -1,9 +1,11 @@
 import type { ActivitySession, AvailabilitySlot, ComfortKey, Interest, ResidentProfile } from "./types";
 
 export const brandAssets = {
-  // Replace these with exported Figma/logo assets when final brand files are available.
+  // Replace these with exported final assets later. Current URLs are temporary Figma MCP assets.
   logoWordmark: "Gesellig",
-  heroImage: "",
+  heroImage: "https://www.figma.com/api/mcp/asset/58671598-5f0c-4cc5-a796-4246eb3fc022",
+  cityCardImage: "https://www.figma.com/api/mcp/asset/4384670a-a387-4af9-8206-69c81d48fbd0",
+  profileCardImage: "https://www.figma.com/api/mcp/asset/762e0a2d-e4d4-41e2-9141-4ede891e1727",
 };
 
 export const interests: { id: Interest; label: string }[] = [

@@ -3,6 +3,7 @@ import {
   ArrowRight,
   CalendarDays,
   Check,
+  Clock3,
   Coffee,
   Flag,
   HeartHandshake,
@@ -26,6 +27,7 @@ import { rankSuggestions } from "./matching";
 import type { ActivitySuggestion, AvailabilitySlot, ComfortKey, Feedback, Interest, ResidentProfile } from "./types";
 
 type Step = "welcome" | "profile" | "preferences" | "availability" | "suggestions" | "confirmed" | "feedback";
+type ViewMode = "mobile" | "dashboard";
 
 const steps: Step[] = ["welcome", "profile", "preferences", "availability", "suggestions", "confirmed", "feedback"];
 
@@ -49,6 +51,23 @@ function Logo() {
         <p className="text-[13px] font-black">{brandAssets.logoWordmark}</p>
         <p className="text-[10px] font-medium text-muted">Rotterdam pilot</p>
       </div>
+    </div>
+  );
+}
+
+function ViewToggle({ mode, setMode }: { mode: ViewMode; setMode: (mode: ViewMode) => void }) {
+  return (
+    <div className="view-toggle" aria-label="Prototype view">
+      {(["mobile", "dashboard"] as const).map((item) => (
+        <button
+          className={`view-toggle-button ${mode === item ? "view-toggle-button-active" : ""}`}
+          key={item}
+          onClick={() => setMode(item)}
+          type="button"
+        >
+          {item === "mobile" ? "Mobile app" : "Dashboard"}
+        </button>
+      ))}
     </div>
   );
 }
@@ -103,17 +122,17 @@ function AppHeader({ step, onDashboard }: HeaderProps) {
 function WelcomeScreen({ onNext }: { onNext: () => void }) {
   return (
     <section className="flex flex-1 flex-col justify-between gap-6">
-      <div className="relative -mx-5 -mt-2 min-h-[330px] overflow-hidden bg-orange">
-        <div className="absolute inset-0 opacity-25">
-          <div className="absolute -left-14 top-10 h-40 w-40 rounded-full border-[28px] border-white" />
-          <div className="absolute bottom-10 right-0 h-52 w-52 rounded-full border-[34px] border-white" />
-          <div className="absolute left-28 top-24 h-28 w-28 rounded-full border-[22px] border-white" />
-        </div>
+      <div className="relative -mx-5 -mt-2 min-h-[392px] overflow-hidden bg-orange">
+        <img alt="" className="figma-image object-top" src={brandAssets.heroImage} />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/10 to-black/55" />
         <div className="absolute left-5 top-5">
           <DutchFlag />
         </div>
-        <div className="absolute inset-x-6 bottom-8 text-white">
-          <div className="mb-4 brand-mark bg-white text-orange">G</div>
+        <div className="absolute right-5 top-5 rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-ink">
+          Rotterdam
+        </div>
+        <div className="absolute inset-x-6 bottom-7 text-white">
+          <div className="mb-4 brand-mark bg-white text-orange shadow-card">G</div>
           <h1 className="title-xl max-w-[260px]">Make free moments social.</h1>
           <p className="mt-3 max-w-[270px] text-[14px] leading-5 text-white/85">
             Find a walk, coffee, museum visit, or local table that fits your time and comfort.
@@ -170,13 +189,19 @@ function ProfileScreen({ profile, setProfile, onNext }: ProfileScreenProps) {
           </select>
         </label>
         <div className="soft-card">
-          <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-0.5 text-green" size={20} />
-            <div>
-              <p className="text-[14px] font-semibold">Privacy-first by design</p>
-              <p className="body-copy mt-1">
-                Municipality dashboards show grouped trends only, never individual resident details.
-              </p>
+          <div className="flex gap-3">
+            <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-[22px] bg-orangeSoft">
+              <img alt="" className="figma-image object-top" src={brandAssets.profileCardImage} />
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-ink/35" />
+            </div>
+            <div className="flex min-w-0 items-start gap-3">
+              <ShieldCheck className="mt-0.5 shrink-0 text-green" size={20} />
+              <div>
+                <p className="text-[14px] font-semibold">Privacy-first by design</p>
+                <p className="body-copy mt-1">
+                  Municipality dashboards show grouped trends only, never individual resident details.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -259,9 +284,17 @@ type AvailabilityScreenProps = {
   profile: ResidentProfile;
   setProfile: (profile: ResidentProfile) => void;
   onNext: () => void;
+  calendarConnected: boolean;
+  setCalendarConnected: (connected: boolean) => void;
 };
 
-function AvailabilityScreen({ profile, setProfile, onNext }: AvailabilityScreenProps) {
+function AvailabilityScreen({
+  calendarConnected,
+  profile,
+  setCalendarConnected,
+  setProfile,
+  onNext,
+}: AvailabilityScreenProps) {
   const toggleSlot = (slot: AvailabilitySlot) => {
     const exists = profile.availability.some((item) => item.label === slot.label);
     setProfile({
@@ -281,12 +314,71 @@ function AvailabilityScreen({ profile, setProfile, onNext }: AvailabilityScreenP
     });
   };
 
+  const toggleCalendarConnection = () => {
+    const nextConnected = !calendarConnected;
+    setCalendarConnected(nextConnected);
+
+    if (nextConnected) {
+      const importedSlots = [availabilityOptions[0], availabilityOptions[1]];
+      const merged = importedSlots.reduce<AvailabilitySlot[]>((current, slot) => {
+        return current.some((item) => item.label === slot.label) ? current : [...current, slot];
+      }, profile.availability);
+      setProfile({ ...profile, availability: merged });
+    }
+  };
+
   return (
     <section className="space-y-6">
       <div>
         <div className="top-line mb-5" />
         <h1 className="title-lg">When could a routine become social?</h1>
-        <p className="body-copy mt-2">Manual for the prototype. Calendar connection stays optional later.</p>
+        <p className="body-copy mt-2">Add time manually or preview a consented calendar import.</p>
+      </div>
+      <div className="soft-card space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-orangeSoft text-orange">
+              <CalendarDays size={19} />
+            </span>
+            <div>
+              <p className="text-[14px] font-semibold">Calendar preview</p>
+              <p className="text-[12px] text-muted">Future opt-in sync, demo uses local slots.</p>
+            </div>
+          </div>
+          <button
+            className={`rounded-full px-3 py-1.5 text-[12px] font-semibold ${
+              calendarConnected ? "bg-orange text-white" : "bg-canvas text-ink"
+            }`}
+            onClick={toggleCalendarConnection}
+            type="button"
+          >
+            {calendarConnected ? "Connected" : "Connect"}
+          </button>
+        </div>
+        {calendarConnected ? (
+          <p className="rounded-2xl bg-canvas px-3 py-2 text-[12px] text-muted">
+            Demo import added two free windows. In production this would require explicit consent and revocation.
+          </p>
+        ) : null}
+        <div className="grid grid-cols-4 gap-2">
+          {availabilityOptions.map((slot) => {
+            const active = profile.availability.some((item) => item.label === slot.label);
+            return (
+              <button
+                className={`calendar-cell ${active ? "calendar-cell-active" : ""}`}
+                key={slot.label}
+                onClick={() => toggleSlot(slot)}
+                type="button"
+              >
+                <span className="font-semibold">{slot.day.slice(0, 3)}</span>
+                <span className="mt-auto flex items-center gap-1 text-muted">
+                  <Clock3 size={12} />
+                  {slot.startTime}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div className="grid gap-3">
         {availabilityOptions.map((slot) => {
@@ -341,6 +433,13 @@ type SuggestionCardProps = {
 function SuggestionCard({ suggestion, onAccept, onReject }: SuggestionCardProps) {
   return (
     <article className="soft-card space-y-4">
+      <div className="relative h-24 overflow-hidden rounded-[22px] bg-orangeSoft">
+        <img alt="" className="figma-image object-top" src={brandAssets.cityCardImage} />
+        <div className="absolute inset-0 bg-gradient-to-r from-ink/75 via-ink/20 to-transparent" />
+        <div className="absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold">
+          {suggestion.isCommunityHosted ? "Hosted public place" : "Public place"}
+        </div>
+      </div>
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[12px] font-semibold text-orange">{suggestion.matchScore}% coordination fit</p>
@@ -518,18 +617,19 @@ function FeedbackScreen({ onSubmit, suggestionId }: FeedbackScreenProps) {
 type BottomNavProps = {
   onDashboard: () => void;
   onHome: () => void;
+  onCalendar: () => void;
 };
 
-function BottomNav({ onDashboard, onHome }: BottomNavProps) {
+function BottomNav({ onCalendar, onDashboard, onHome }: BottomNavProps) {
   return (
     <nav className="bottom-nav">
       <button className="grid justify-items-center gap-1" onClick={onHome} type="button">
         <Home size={16} />
         Home
       </button>
-      <button className="grid justify-items-center gap-1" type="button">
+      <button className="grid justify-items-center gap-1" onClick={onCalendar} type="button">
         <CalendarDays size={16} />
-        Moments
+        Calendar
       </button>
       <button className="grid justify-items-center gap-1" type="button">
         <Users size={16} />
@@ -547,10 +647,11 @@ type DashboardProps = {
   acceptedCount: number;
   completedCount: number;
   feedback: Feedback[];
+  onMobile: () => void;
   rejectedCount: number;
 };
 
-function Dashboard({ acceptedCount, completedCount, feedback, rejectedCount }: DashboardProps) {
+function Dashboard({ acceptedCount, completedCount, feedback, onMobile, rejectedCount }: DashboardProps) {
   const repeatCount = feedback.filter((item) => item.wantsRepeat).length;
   const avgConnection = feedback.length
     ? (feedback.reduce((sum, item) => sum + item.connectionRating, 0) / feedback.length).toFixed(1)
@@ -564,7 +665,7 @@ function Dashboard({ acceptedCount, completedCount, feedback, rejectedCount }: D
   ];
 
   return (
-    <aside className="dashboard-panel">
+    <section className="dashboard-panel">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-orange">Municipality view</p>
@@ -573,7 +674,22 @@ function Dashboard({ acceptedCount, completedCount, feedback, rejectedCount }: D
             City teams see grouped activity trends only. No resident profile, exact location, or individual feedback is exposed.
           </p>
         </div>
-        <DutchFlag />
+        <div className="flex flex-col items-end gap-3">
+          <DutchFlag />
+          <button className="cta-secondary" onClick={onMobile} type="button">
+            Mobile app
+          </button>
+        </div>
+      </div>
+      <div className="relative mb-4 h-44 overflow-hidden rounded-[28px] bg-orange">
+        <img alt="" className="figma-image object-top opacity-80" src={brandAssets.cityCardImage} />
+        <div className="absolute inset-0 bg-gradient-to-r from-ink/80 via-ink/35 to-transparent" />
+        <div className="absolute bottom-5 left-5 max-w-sm text-white">
+          <p className="text-[13px] font-semibold">Low-stigma city entry points</p>
+          <p className="mt-1 text-[12px] leading-5 text-white/75">
+            Libraries, campuses, cafes, museums, and sports clubs invite residents into shared activities.
+          </p>
+        </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {metrics.map((metric) => (
@@ -621,28 +737,33 @@ function Dashboard({ acceptedCount, completedCount, feedback, rejectedCount }: D
           activity planning, not needs-based outreach.
         </p>
       </div>
-    </aside>
+    </section>
   );
 }
 
 export default function App() {
   const [step, setStep] = useState<Step>("welcome");
+  const [mode, setMode] = useState<ViewMode>("mobile");
   const [profile, setProfile] = useState<ResidentProfile>(defaultProfile);
   const [accepted, setAccepted] = useState<ActivitySuggestion | null>(null);
   const [rejectedIds, setRejectedIds] = useState<string[]>([]);
   const [blockedIds, setBlockedIds] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<Feedback[]>([]);
-  const [showDashboard, setShowDashboard] = useState(false);
+  const [calendarConnected, setCalendarConnected] = useState(false);
 
   const suggestions = useMemo(
     () => rankSuggestions(profile, sessions, rejectedIds, blockedIds, feedback),
     [blockedIds, feedback, profile, rejectedIds],
   );
 
-  const goDashboard = () => setShowDashboard(true);
+  const goDashboard = () => setMode("dashboard");
   const goHome = () => {
-    setShowDashboard(false);
+    setMode("mobile");
     setStep("suggestions");
+  };
+  const goCalendar = () => {
+    setMode("mobile");
+    setStep("availability");
   };
 
   const acceptSuggestion = (suggestion: ActivitySuggestion) => {
@@ -654,25 +775,10 @@ export default function App() {
 
   const submitFeedback = (nextFeedback: Feedback) => {
     setFeedback((current) => [...current.filter((item) => item.suggestionId !== nextFeedback.suggestionId), nextFeedback]);
-    setShowDashboard(true);
+    setMode("dashboard");
   };
 
   const renderScreen = () => {
-    if (showDashboard) {
-      return (
-        <div className="space-y-4">
-          <div>
-            <div className="top-line mb-5" />
-            <h1 className="title-lg">Impact without individual exposure</h1>
-            <p className="body-copy mt-2">Anonymous city view sits beside the resident experience.</p>
-          </div>
-          <button className="cta w-full" onClick={() => setShowDashboard(false)} type="button">
-            Back to resident flow
-          </button>
-        </div>
-      );
-    }
-
     if (step === "welcome") {
       return <WelcomeScreen onNext={() => setStep("profile")} />;
     }
@@ -686,7 +792,15 @@ export default function App() {
     }
 
     if (step === "availability") {
-      return <AvailabilityScreen onNext={() => setStep("suggestions")} profile={profile} setProfile={setProfile} />;
+      return (
+        <AvailabilityScreen
+          calendarConnected={calendarConnected}
+          onNext={() => setStep("suggestions")}
+          profile={profile}
+          setCalendarConnected={setCalendarConnected}
+          setProfile={setProfile}
+        />
+      );
     }
 
     if (step === "suggestions") {
@@ -718,21 +832,28 @@ export default function App() {
   return (
     <main className="app-shell">
       <div className="prototype-grid">
-        <div className="phone-frame">
-          <StatusBar />
-          <div className="screen-pad">
-            {step !== "welcome" || showDashboard ? <AppHeader onDashboard={goDashboard} step={step} /> : null}
-            {!showDashboard ? <Progress step={step} /> : null}
-            {renderScreen()}
+        <ViewToggle mode={mode} setMode={setMode} />
+        {mode === "mobile" ? (
+          <div className="phone-frame">
+            <StatusBar />
+            <div className="screen-pad">
+              {step !== "welcome" ? <AppHeader onDashboard={goDashboard} step={step} /> : null}
+              <Progress step={step} />
+              {renderScreen()}
+            </div>
+            {step !== "welcome" ? (
+              <BottomNav onCalendar={goCalendar} onDashboard={goDashboard} onHome={goHome} />
+            ) : null}
           </div>
-          {step !== "welcome" ? <BottomNav onDashboard={goDashboard} onHome={goHome} /> : null}
-        </div>
-        <Dashboard
-          acceptedCount={accepted ? 1 : 0}
-          completedCount={feedback.length}
-          feedback={feedback}
-          rejectedCount={rejectedIds.length + blockedIds.length}
-        />
+        ) : (
+          <Dashboard
+            acceptedCount={accepted ? 1 : 0}
+            completedCount={feedback.length}
+            feedback={feedback}
+            onMobile={() => setMode("mobile")}
+            rejectedCount={rejectedIds.length + blockedIds.length}
+          />
+        )}
       </div>
     </main>
   );
