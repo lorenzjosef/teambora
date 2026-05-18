@@ -524,6 +524,7 @@ function SuggestionCard({ suggestion, onAccept, onReject }: SuggestionCardProps)
 }
 
 type SuggestionsScreenProps = {
+  accepted?: ActivitySuggestion | null;
   onResetRejected: () => void;
   suggestions: ActivitySuggestion[];
   onAccept: (suggestion: ActivitySuggestion) => void;
@@ -531,7 +532,7 @@ type SuggestionsScreenProps = {
   signedUpId?: string;
 };
 
-function SuggestionsScreen({ onAccept, onReject, onResetRejected, signedUpId, suggestions }: SuggestionsScreenProps) {
+function SuggestionsScreen({ accepted, onAccept, onReject, onResetRejected, signedUpId, suggestions }: SuggestionsScreenProps) {
   const visibleSuggestions = suggestions.filter((suggestion) => suggestion.id !== signedUpId);
 
   return (
@@ -541,6 +542,13 @@ function SuggestionsScreen({ onAccept, onReject, onResetRejected, signedUpId, su
         <h1 className="title-lg">Groups near you</h1>
         <p className="body-copy mt-2">Ranked by interest, time, comfort, and rough travel radius.</p>
       </div>
+      {accepted ? (
+        <div className="soft-card border-orange bg-orangeSoft">
+          <p className="text-[12px] font-semibold text-orange">Signed up</p>
+          <p className="mt-1 text-[16px] font-semibold">{accepted.title}</p>
+          <p className="text-[12px] text-muted">{formatTime(accepted.time)}</p>
+        </div>
+      ) : null}
       {visibleSuggestions.length > 0 ? (
         <div className="grid gap-4">
           {visibleSuggestions.map((suggestion) => (
@@ -760,6 +768,12 @@ function FriendsScreen({ feedback, onPlan }: { feedback: Feedback[]; onPlan: () 
         <h1 className="title-lg">People you may meet again</h1>
         <p className="body-copy mt-2">Longer-term connections build from repeat activities, not profile browsing.</p>
       </div>
+      {!hasRepeat ? (
+        <div className="soft-card border-orange bg-orangeSoft">
+          <p className="text-[14px] font-semibold">No repeat contacts yet</p>
+          <p className="text-[12px] text-muted">After feedback, people you choose to meet again appear here.</p>
+        </div>
+      ) : null}
       {friends.map((friend, index) => (
         <div className="soft-card flex items-center justify-between" key={friend}>
           <div className="flex items-center gap-3">
@@ -1010,6 +1024,7 @@ export default function App() {
     if (step === "home") {
       return (
         <SuggestionsScreen
+          accepted={accepted}
           onAccept={acceptSuggestion}
           onReject={rejectSuggestion}
           onResetRejected={resetRejected}
@@ -1036,6 +1051,7 @@ export default function App() {
     if (step === "groups") {
       return (
         <SuggestionsScreen
+          accepted={accepted}
           onAccept={acceptSuggestion}
           onReject={rejectSuggestion}
           onResetRejected={resetRejected}
