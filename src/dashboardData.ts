@@ -174,6 +174,70 @@ export const municipalityCannotSee = [
   "Mental health status",
 ];
 
+// --- User Data ---
+export const signupChannels = [
+  { channel: "QR code scan", count: 68, pct: 48 },
+  { channel: "Friend referral", count: 34, pct: 24 },
+  { channel: "Municipality website", count: 22, pct: 15 },
+  { channel: "Community host invite", count: 12, pct: 8 },
+  { channel: "Social media", count: 6, pct: 4 },
+];
+
+export const ageGroupStats = [
+  { group: "18–24", signups: 14, activeRate: 71, noShowRate: 18, avgActivitiesPerMonth: 2.1 },
+  { group: "25–34", signups: 38, activeRate: 82, noShowRate: 12, avgActivitiesPerMonth: 2.8 },
+  { group: "35–49", signups: 31, activeRate: 76, noShowRate: 14, avgActivitiesPerMonth: 2.3 },
+  { group: "50–64", signups: 29, activeRate: 84, noShowRate: 8, avgActivitiesPerMonth: 3.1 },
+  { group: "65+", signups: 30, activeRate: 79, noShowRate: 6, avgActivitiesPerMonth: 3.4 },
+];
+
+export const userRetention = [
+  { week: "Week 1", active: 142 },
+  { week: "Week 2", active: 128 },
+  { week: "Week 3", active: 119 },
+  { week: "Week 4", active: 114 },
+];
+
+// --- Activity Data ---
+export const peakTimes = [
+  { slot: "Mon–Fri 17:00–19:00", pct: 34, label: "Weekday evening" },
+  { slot: "Sat 10:00–12:00", pct: 22, label: "Saturday morning" },
+  { slot: "Sun 14:00–17:00", pct: 18, label: "Sunday afternoon" },
+  { slot: "Mon–Fri 12:00–13:00", pct: 14, label: "Lunch break" },
+  { slot: "Mon–Fri 20:00–22:00", pct: 12, label: "Late evening" },
+];
+
+export const groupSizeDistribution = [
+  { size: "1-on-1", count: 52, pct: 37 },
+  { size: "3–4 people", count: 48, pct: 34 },
+  { size: "5–8 people", count: 29, pct: 20 },
+  { size: "9+ people", count: 13, pct: 9 },
+];
+
+export const venueUtilization = [
+  { venue: "Bibliotheek Rotterdam", capacity: 24, used: 18, utilization: 75 },
+  { venue: "Sportcentrum West", capacity: 16, used: 9, utilization: 56 },
+  { venue: "Museumpark venues", capacity: 12, used: 12, utilization: 100 },
+  { venue: "Neighborhood cafes", capacity: 20, used: 15, utilization: 75 },
+  { venue: "Public parks / walks", capacity: 40, used: 22, utilization: 55 },
+];
+
+// --- Outcome Data ---
+export const satisfactionBreakdown = [
+  { rating: 5, count: 31, label: "Excellent" },
+  { rating: 4, count: 34, label: "Good" },
+  { rating: 3, count: 16, label: "Okay" },
+  { rating: 2, count: 6, label: "Below expectations" },
+  { rating: 1, count: 2, label: "Poor" },
+];
+
+export const connectionOutcomes = [
+  { metric: "New connections formed", value: 89, unit: "pairs" },
+  { metric: "Continued outside app", value: 34, unit: "pairs" },
+  { metric: "Avg. meetups before repeat", value: 1.6, unit: "sessions" },
+  { metric: "Avg. time to first meetup", value: 3.2, unit: "days" },
+];
+
 export const getLiveDashboardMetrics = ({ acceptedCount, feedback }: LiveDashboardInputs) => {
   const repeatCount = feedback.filter((item) => item.wantsRepeat).length;
   const completedCount = feedback.filter((item) => item.attended).length;

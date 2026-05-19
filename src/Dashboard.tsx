@@ -1,29 +1,35 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
-  ArrowLeft,
   ArrowRight,
   BarChart3,
-  ChevronRight,
-  Eye,
-  EyeOff,
   Info,
   Lightbulb,
   MapPin,
+  Mic,
   ShieldCheck,
   Sparkles,
+  Square,
   Users,
 } from "lucide-react";
-import { GeselligMark } from "./Brand";
 import { brandAssets } from "./data";
+import { useVoiceInput } from "./voice";
 import {
   activityDemand,
+  ageGroupStats,
+  connectionOutcomes,
   dashboardRanges,
   getLiveDashboardMetrics,
+  groupSizeDistribution,
   llmRecommendations,
   municipalityCanSee,
   municipalityCannotSee,
   neighborhoodEngagement,
   partnerPerformance,
+  peakTimes,
+  satisfactionBreakdown,
+  signupChannels,
+  userRetention,
+  venueUtilization,
   type DashboardRange,
 } from "./dashboardData";
 import type { Feedback } from "./types";
@@ -44,39 +50,6 @@ function DutchFlag() {
   );
 }
 
-function Logo() {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="grid h-10 w-10 place-items-center rounded-full bg-white text-ink shadow-card">
-        <GeselligMark className="h-7 w-7" />
-      </div>
-      <div className="leading-tight">
-        <p className="text-[15px] font-black">{brandAssets.logoWordmark}</p>
-        <p className="text-[12px] font-medium text-muted">Municipality dashboard</p>
-      </div>
-    </div>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  trend,
-}: {
-  label: string;
-  value: string;
-  trend: string;
-}) {
-  return (
-    <article className="rounded-[8px] border border-line bg-white p-4 shadow-card">
-      <p className="text-[12px] font-semibold text-muted">{label}</p>
-      <p className="mt-3 text-[34px] font-semibold leading-none tracking-normal">{value}</p>
-      <p className="mt-2 text-[12px] font-semibold text-green">{trend}</p>
-      <p className="mt-3 border-t border-line pt-3 text-[11px] font-semibold text-muted">Aggregated residents only</p>
-    </article>
-  );
-}
-
 function GuardrailChip({ children }: { children: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-[12px] font-semibold text-ink">
@@ -86,60 +59,200 @@ function GuardrailChip({ children }: { children: string }) {
   );
 }
 
-function LaunchScreen({ onLaunch, onMobile }: { onLaunch: () => void; onMobile: () => void }) {
+
+const FIXED_DASHBOARD_PROMPT = "In which regions would you recommend that we place QR codes to maximize sign-ups?";
+const FIXED_AI_RESPONSE = `Based on aggregated pilot data, I recommend prioritizing QR code placement in these areas:
+
+**1. Kralingen** — Highest evening demand (36 accepted, 72% completion). Place codes at Bibliotheek Rotterdam entrances, the park walking paths, and local cafes along Kralingse Plas.
+
+**2. Centrum** — Stable hosted uptake (29 accepted). Focus on Museumpark entrances, the central library branch, and coffee spots near Blaak station where foot traffic peaks 17:00-19:00.
+
+**3. Delfshaven** — Needs more venue slots (24 accepted, 61% completion). Target community centers, Sportcentrum West entrance, and the neighborhood market. This area has high unmet demand.
+
+**4. Katendrecht** — Small-group formats work well here (18 accepted, 38% repeat). Place codes in waterfront cafes and the SS Rotterdam visitor area.
+
+Avoid Charlois for now — participant groups are below the privacy threshold (4 groups). Wait for organic growth before investing in outreach there.
+
+Priority timing: codes placed near evening-accessible venues convert 2.3x better than daytime-only locations.`;
+
+type DashboardTab = "ai" | "data";
+
+function AiAdvisorView() {
+  const { isRecording, start, stop, liveWords, finalText } = useVoiceInput();
+  const [draft, setDraft] = useState("");
+  const [showResult, setShowResult] = useState(false);
+  const visiblePrompt = draft || finalText;
+
+  const handleSubmit = useCallback(() => {
+    const text = draft.trim() || finalText.trim() || liveWords.trim();
+    if (!text) return;
+    if (isRecording) stop();
+    if (!draft.trim()) setDraft(text);
+    setShowResult(true);
+  }, [draft, finalText, isRecording, liveWords, stop]);
+
   return (
-    <section className="w-full">
-      <div className="mx-auto grid min-h-[calc(100vh-96px)] w-full max-w-2xl place-items-center">
-        <div className="w-full overflow-hidden rounded-xl border border-black/10 shadow-2xl">
-          {/* Electron-style titlebar */}
-          <div className="flex h-9 items-center gap-2 bg-[#1e1e1e] px-4">
-            <span className="h-3 w-3 rounded-full bg-[#ff5f56]" />
-            <span className="h-3 w-3 rounded-full bg-[#ffbd2e]" />
-            <span className="h-3 w-3 rounded-full bg-[#27c93f]" />
-            <span className="ml-3 text-[11px] font-medium text-white/50">Gesellig — Municipality Dashboard</span>
-          </div>
-          {/* App body */}
-          <div className="flex flex-col items-center bg-[#0f0f0f] px-8 pb-10 pt-14 text-center">
-            <div className="mb-6 grid h-20 w-20 place-items-center rounded-2xl bg-white shadow-lg">
-              <GeselligMark className="h-12 w-12 text-ink" />
-            </div>
-            <h1 className="text-[28px] font-bold tracking-[-0.5px] text-white">Gesellig</h1>
-            <p className="mt-1 text-[13px] font-medium text-white/40">Municipality operational dashboard</p>
-            <div className="mt-6 flex items-center gap-2">
-              <DutchFlag />
-              <span className="text-[12px] font-semibold text-white/60">Rotterdam pilot</span>
-            </div>
-            <p className="mt-8 max-w-sm text-[13px] leading-5 text-white/50">
-              Aggregated activity coordination signals. Privacy-safe recommendations without resident-level records.
-            </p>
-            <div className="mt-8 flex gap-3">
-              <button
-                className="flex h-11 items-center gap-2 rounded-lg bg-orange px-6 text-[13px] font-semibold text-white transition hover:brightness-110"
-                onClick={onLaunch}
-                type="button"
+    <>
+      <div className="mx-auto w-full max-w-5xl space-y-8">
+        {/* Greeting */}
+        <div>
+          <h1 style={{ margin: 0, fontSize: "48px", fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1, color: "#1b1c1c" }}>
+            Hello, Rotterdam
+          </h1>
+          <div style={{ marginTop: "12px", height: "2px", width: "48px", background: "linear-gradient(90deg, #ff8c32, #e86a10)", borderRadius: "2px" }} />
+          <p style={{ marginTop: "12px", fontSize: "15px", color: "#78716c", lineHeight: 1.5 }}>
+            Ask your AI advisor anything about activity coordination, outreach strategy, or resource allocation.
+          </p>
+        </div>
+
+        {/* Prompt input */}
+        <div style={{ borderRadius: "18px", border: "1px solid rgba(0,0,0,0.06)", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(8px)", padding: "6px 6px 6px 20px", boxShadow: "0 4px 12px rgba(0,0,0,0.04)", display: "flex", alignItems: "center", gap: "10px" }}>
+          <input
+            style={{ flex: 1, border: 0, background: "transparent", fontSize: "15px", outline: "none", color: "#1a1a1a", minWidth: 0 }}
+            placeholder="Ask the AI advisor..."
+            value={isRecording ? "" : visiblePrompt}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSubmit(); } }}
+            readOnly={isRecording}
+          />
+          <button
+            onClick={isRecording ? stop : start}
+            style={{
+              width: "38px", height: "38px", borderRadius: "10px", border: 0, cursor: "pointer", display: "grid", placeItems: "center",
+              background: isRecording ? "#e86a10" : "rgba(0,0,0,0.04)", color: isRecording ? "#fff" : "#78716c", transition: "all 0.15s",
+            }}
+            type="button"
+            aria-label={isRecording ? "Stop" : "Speak"}
+          >
+            {isRecording ? <Square size={14} /> : <Mic size={14} />}
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!visiblePrompt.trim() && !isRecording}
+            style={{
+              width: "38px", height: "38px", borderRadius: "10px", border: 0, cursor: "pointer", display: "grid", placeItems: "center",
+              background: "#1a1a1a", color: "#fff", opacity: (!visiblePrompt.trim() && !isRecording) ? 0.3 : 1, transition: "all 0.15s",
+            }}
+            type="button"
+            aria-label="Submit"
+          >
+            <ArrowRight size={14} />
+          </button>
+        </div>
+        {isRecording && (
+          <p style={{ fontSize: "13px", color: "#78716c", fontStyle: "italic", marginTop: "-16px" }}>{liveWords || "Listening..."}</p>
+        )}
+
+        {/* Example prompts */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+          {[
+            "Where should we place QR codes?",
+            "Which activities need more hosts?",
+            "How to reach new residents in Delfshaven?",
+          ].map((ex) => (
+            <button
+              key={ex}
+              onClick={() => { setDraft(ex); }}
+              style={{ borderRadius: "10px", border: "1px solid rgba(0,0,0,0.06)", background: "#fff", padding: "8px 14px", fontSize: "12px", fontWeight: 600, color: "#78716c", cursor: "pointer" }}
+              type="button"
+            >
+              {ex}
+            </button>
+          ))}
+        </div>
+
+        {/* AI Recommendations */}
+        <div>
+          <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: "0 0 16px" }}>Proactive recommendations</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            {llmRecommendations.map((item) => (
+              <article
+                key={item.title}
+                style={{
+                  borderRadius: "16px",
+                  border: "1px solid rgba(0,0,0,0.05)",
+                  borderLeft: "3px solid #e86a10",
+                  background: "rgba(255,255,255,0.9)",
+                  backdropFilter: "blur(6px)",
+                  padding: "20px",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                }}
               >
-                Open dashboard
-                <ArrowRight size={15} />
-              </button>
-              <button
-                className="flex h-11 items-center gap-2 rounded-lg border border-white/15 px-5 text-[13px] font-semibold text-white/70 transition hover:bg-white/5"
-                onClick={onMobile}
-                type="button"
-              >
-                <ArrowLeft size={14} />
-                Mobile app
-              </button>
-            </div>
-            <p className="mt-10 text-[11px] text-white/30">v1.0.0-pilot · One municipality · Grouped metrics only</p>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+                  <div>
+                    <p style={{ fontSize: "15px", fontWeight: 700, margin: 0, color: "#1a1a1a" }}>{item.title}</p>
+                    <p style={{ fontSize: "12px", color: "#78716c", margin: "6px 0 0", lineHeight: 1.5 }}>{item.evidence}</p>
+                  </div>
+                  <span style={{ borderRadius: "6px", background: "rgba(0,0,0,0.04)", padding: "4px 8px", fontSize: "10px", fontWeight: 600, color: "#78716c", whiteSpace: "nowrap" }}>{item.sourceType}</span>
+                </div>
+                <p style={{ marginTop: "12px", borderRadius: "8px", background: "rgba(255,140,50,0.06)", padding: "10px 12px", fontSize: "13px", lineHeight: 1.5, color: "#1a1a1a" }}>
+                  → {item.recommendation}
+                </p>
+              </article>
+            ))}
           </div>
         </div>
+
+        {/* Privacy note */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", borderRadius: "10px", background: "rgba(0,0,0,0.03)", padding: "12px 16px" }}>
+          <ShieldCheck size={16} style={{ color: "#22863a", flexShrink: 0 }} />
+          <p style={{ fontSize: "12px", color: "#78716c", margin: 0, lineHeight: 1.4 }}>
+            AI recommendations are generated from grouped, aggregate data only. No individual resident data is used or visible.
+          </p>
+        </div>
       </div>
-    </section>
+
+      {/* Result popup */}
+      {showResult && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }} onClick={() => setShowResult(false)}>
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)" }} />
+          <div
+            style={{ position: "relative", width: "min(640px, 100%)", maxHeight: "80vh", overflow: "auto", borderRadius: "20px", background: "#fff", padding: "28px", boxShadow: "0 30px 60px -20px rgba(0,0,0,0.25)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ marginBottom: "20px" }}>
+              <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#c2530a", margin: 0 }}>Your request</p>
+              <p style={{ marginTop: "8px", fontSize: "14px", fontStyle: "italic", color: "#78716c" }}>"{draft}"</p>
+            </div>
+            <div style={{ borderRadius: "12px", background: "rgba(0,0,0,0.03)", padding: "14px", marginBottom: "20px" }}>
+              <p style={{ fontSize: "12px", fontWeight: 600, margin: 0, color: "#1a1a1a" }}>Prototype notice</p>
+              <p style={{ fontSize: "12px", color: "#78716c", margin: "6px 0 0", lineHeight: 1.5 }}>
+                Since this is a prototype without a live LLM API, we process this fixed prompt instead:
+              </p>
+              <p style={{ fontSize: "12px", fontWeight: 500, color: "#1a1a1a", margin: "8px 0 0" }}>"{FIXED_DASHBOARD_PROMPT}"</p>
+            </div>
+            <div style={{ borderRadius: "12px", border: "1px solid rgba(0,0,0,0.06)", padding: "18px" }}>
+              <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#22863a", margin: "0 0 12px" }}>AI Response</p>
+              <div style={{ fontSize: "13px", lineHeight: 1.7, color: "#1a1a1a", whiteSpace: "pre-wrap" }}>
+                {FIXED_AI_RESPONSE}
+              </div>
+            </div>
+            <button
+              onClick={() => setShowResult(false)}
+              style={{ marginTop: "20px", width: "100%", borderRadius: "12px", border: 0, background: "#1a1a1a", color: "#fff", padding: "14px", fontSize: "14px", fontWeight: 600, cursor: "pointer" }}
+              type="button"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
-export default function Dashboard({ acceptedCount, feedback, onMobile }: DashboardProps) {
-  const [isLaunched, setIsLaunched] = useState(false);
+type DataSection = "users" | "activities" | "geography" | "outcomes" | "privacy";
+
+const dataSections: { id: DataSection; label: string }[] = [
+  { id: "users", label: "Users" },
+  { id: "activities", label: "Activities" },
+  { id: "geography", label: "Geography" },
+  { id: "outcomes", label: "Outcomes" },
+  { id: "privacy", label: "Privacy" },
+];
+
+function DataView({ acceptedCount, feedback }: { acceptedCount: number; feedback: Feedback[] }) {
+  const [section, setSection] = useState<DataSection>("users");
   const [activeRange, setActiveRange] = useState<DashboardRange>("30d");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(neighborhoodEngagement[0].name);
   const [showSafety, setShowSafety] = useState(false);
@@ -149,64 +262,437 @@ export default function Dashboard({ acceptedCount, feedback, onMobile }: Dashboa
   const maxAccepted = Math.max(...activityDemand.map((item) => item.acceptedSuggestions + item.unmetDemand));
   const activeRangeLabel = dashboardRanges.find((range) => range.id === activeRange)?.label ?? "Last 30 days";
 
-  if (!isLaunched) {
-    return <LaunchScreen onLaunch={() => setIsLaunched(true)} onMobile={onMobile} />;
-  }
-
   return (
-    <section className="w-full">
-      <div className="mx-auto w-full max-w-7xl space-y-5">
-        <header className="flex flex-col gap-4 rounded-[8px] border border-line bg-surface px-5 py-4 shadow-card lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-4">
-            <Logo />
-            <DutchFlag />
-            <span className="rounded-full border border-ink bg-ink px-3 py-1.5 text-[12px] font-semibold text-white">Rotterdam</span>
+    <div className="mx-auto w-full max-w-7xl space-y-7">
+      {/* Header + section nav */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: 0 }}>Operational data</p>
+          <h2 style={{ margin: "6px 0 0", fontSize: "24px", fontWeight: 700, letterSpacing: "-0.03em" }}>Rotterdam · {activeRangeLabel}</h2>
+        </div>
+        <div style={{ display: "flex", borderRadius: "12px", border: "1px solid rgba(0,0,0,0.06)", background: "#fff", padding: "3px" }}>
+          {dashboardRanges.map((range) => (
+            <button
+              key={range.id}
+              onClick={() => setActiveRange(range.id)}
+              style={{
+                borderRadius: "9px", padding: "7px 14px", fontSize: "12px", fontWeight: 600, border: 0, cursor: "pointer",
+                background: activeRange === range.id ? "#1a1a1a" : "transparent",
+                color: activeRange === range.id ? "#fff" : "#78716c",
+                transition: "all 0.15s",
+              }}
+              type="button"
+            >
+              {range.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Sub-screen tabs */}
+      <div style={{ display: "flex", gap: "4px", borderRadius: "12px", border: "1px solid rgba(0,0,0,0.06)", background: "#fff", padding: "3px", flexWrap: "wrap" }}>
+        {dataSections.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setSection(s.id)}
+            style={{
+              borderRadius: "9px", padding: "8px 16px", fontSize: "13px", fontWeight: 600, border: 0, cursor: "pointer",
+              background: section === s.id ? "#1a1a1a" : "transparent",
+              color: section === s.id ? "#fff" : "#78716c",
+              transition: "all 0.15s",
+            }}
+            type="button"
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* === USERS === */}
+      {section === "users" && (
+        <>
+          {/* Overview metrics */}
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { label: "Total sign-ups (30d)", value: metrics.acceptedSuggestions.toLocaleString(), sub: "+18% vs previous period" },
+              { label: "Active users", value: "114", sub: "80% of sign-ups" },
+              { label: "No-show rate", value: "11%", sub: "↓2% vs last month" },
+              { label: "Avg. rating", value: metrics.connectionRating.toFixed(1), sub: "Self-reported" },
+            ].map((m) => (
+              <article key={m.label} style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.85)", backdropFilter: "blur(6px)", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: 0 }}>{m.label}</p>
+                <p style={{ fontSize: "36px", fontWeight: 700, letterSpacing: "-0.03em", margin: "12px 0 0", color: "#1a1a1a" }}>{m.value}</p>
+                <p style={{ fontSize: "12px", fontWeight: 600, color: "#22863a", margin: "8px 0 0" }}>{m.sub}</p>
+              </article>
+            ))}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-full border border-line bg-white p-1">
-              {dashboardRanges.map((range) => (
-                <button
-                  className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition ${
-                    activeRange === range.id ? "bg-orange text-white" : "text-muted hover:text-ink"
-                  }`}
-                  key={range.id}
-                  onClick={() => setActiveRange(range.id)}
-                  type="button"
-                >
-                  {range.label}
-                </button>
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            {/* Sign-up channels */}
+            <article style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: "0 0 16px" }}>How people sign up</p>
+              <div className="space-y-3">
+                {signupChannels.map((ch) => (
+                  <div key={ch.channel}>
+                    <div className="flex items-center justify-between" style={{ fontSize: "13px" }}>
+                      <span style={{ fontWeight: 600 }}>{ch.channel}</span>
+                      <span style={{ color: "#78716c" }}>{ch.count} ({ch.pct}%)</span>
+                    </div>
+                    <div style={{ height: "6px", borderRadius: "4px", background: "rgba(0,0,0,0.04)", overflow: "hidden", marginTop: "4px" }}>
+                      <div style={{ height: "100%", borderRadius: "4px", background: "linear-gradient(90deg, #ff8c32, #e86a10)", width: `${ch.pct}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            {/* Age groups */}
+            <article style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: "0 0 16px" }}>Statistics per age group</p>
+              <div className="overflow-x-auto">
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                      {["Age", "Sign-ups", "Active %", "No-show", "Avg/month"].map((h) => (
+                        <th key={h} style={{ padding: "8px 0", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ageGroupStats.map((row) => (
+                      <tr key={row.group} style={{ borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
+                        <td style={{ padding: "8px 0", fontWeight: 600 }}>{row.group}</td>
+                        <td style={{ padding: "8px 0" }}>{row.signups}</td>
+                        <td style={{ padding: "8px 0" }}>{row.activeRate}%</td>
+                        <td style={{ padding: "8px 0", color: row.noShowRate > 15 ? "#c2530a" : "#78716c" }}>{row.noShowRate}%</td>
+                        <td style={{ padding: "8px 0" }}>{row.avgActivitiesPerMonth}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+
+          {/* Retention */}
+          <article style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+            <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: "0 0 16px" }}>User retention (weekly active)</p>
+            <div className="grid grid-cols-4 gap-4">
+              {userRetention.map((w) => (
+                <div key={w.week} style={{ borderRadius: "10px", background: "rgba(0,0,0,0.03)", padding: "14px", textAlign: "center" }}>
+                  <p style={{ fontSize: "11px", fontWeight: 600, color: "#78716c", margin: 0 }}>{w.week}</p>
+                  <p style={{ fontSize: "28px", fontWeight: 700, margin: "8px 0 0" }}>{w.active}</p>
+                </div>
               ))}
             </div>
-            <button className="cta-secondary h-10 rounded-full px-4" onClick={onMobile} type="button">
-              <ArrowLeft size={16} />
-              Mobile app
-            </button>
+          </article>
+        </>
+      )}
+
+      {/* === ACTIVITIES === */}
+      {section === "activities" && (
+        <>
+          <div className="grid gap-6 xl:grid-cols-2">
+            {/* Activity demand */}
+            <article style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: 0 }}>Activity demand</p>
+                  <h2 style={{ margin: "6px 0 0", fontSize: "20px", fontWeight: 700, letterSpacing: "-0.02em" }}>Coordination friction</h2>
+                </div>
+                <BarChart3 size={20} style={{ color: "#c2530a" }} />
+              </div>
+              <div className="space-y-4">
+                {activityDemand.map((activity) => {
+                  const total = activity.acceptedSuggestions + activity.unmetDemand;
+                  return (
+                    <div key={activity.id}>
+                      <div className="mb-1 flex items-center justify-between gap-3" style={{ fontSize: "13px" }}>
+                        <span style={{ fontWeight: 600 }}>{activity.label}</span>
+                        <span style={{ color: "#78716c" }}>{activity.acceptedSuggestions} / {activity.unmetDemand} unmet</span>
+                      </div>
+                      <div style={{ height: "6px", borderRadius: "4px", background: "rgba(0,0,0,0.04)", overflow: "hidden" }}>
+                        <div style={{ height: "100%", borderRadius: "4px", background: "linear-gradient(90deg, #ff8c32, #e86a10)", width: `${Math.round((total / maxAccepted) * 100)}%` }} />
+                      </div>
+                      <p style={{ marginTop: "4px", fontSize: "11px", color: "#a8a29e" }}>{activity.frictionNote}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </article>
+
+            {/* Peak times */}
+            <article style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: "0 0 16px" }}>Peak activity times</p>
+              <div className="space-y-3">
+                {peakTimes.map((t) => (
+                  <div key={t.slot}>
+                    <div className="flex items-center justify-between" style={{ fontSize: "13px" }}>
+                      <span style={{ fontWeight: 600 }}>{t.label}</span>
+                      <span style={{ color: "#78716c" }}>{t.slot} · {t.pct}%</span>
+                    </div>
+                    <div style={{ height: "6px", borderRadius: "4px", background: "rgba(0,0,0,0.04)", overflow: "hidden", marginTop: "4px" }}>
+                      <div style={{ height: "100%", borderRadius: "4px", background: "linear-gradient(90deg, #22863a, #2ea043)", width: `${t.pct}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
           </div>
-        </header>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Suggestions accepted" trend="+18% vs previous period" value={metrics.acceptedSuggestions.toLocaleString()} />
-          <MetricCard label="Real-life meetups" trend={`${metrics.completionRate}% completion rate`} value={metrics.completedMeetups.toLocaleString()} />
-          <MetricCard label="Repeat meetups" trend={`${metrics.repeatRate}% of completed meetups`} value={metrics.repeatMeetups.toLocaleString()} />
-          <MetricCard label="Avg. connection rating" trend="Self-reported after activity" value={metrics.connectionRating.toFixed(1)} />
-        </div>
+          <div className="grid gap-6 xl:grid-cols-2">
+            {/* Group sizes */}
+            <article style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: "0 0 16px" }}>Group size distribution</p>
+              <div className="space-y-3">
+                {groupSizeDistribution.map((g) => (
+                  <div key={g.size} className="flex items-center gap-4">
+                    <span style={{ fontSize: "13px", fontWeight: 600, minWidth: "80px" }}>{g.size}</span>
+                    <div style={{ flex: 1, height: "6px", borderRadius: "4px", background: "rgba(0,0,0,0.04)", overflow: "hidden" }}>
+                      <div style={{ height: "100%", borderRadius: "4px", background: "#1a1a1a", width: `${g.pct}%` }} />
+                    </div>
+                    <span style={{ fontSize: "12px", color: "#78716c", minWidth: "50px", textAlign: "right" }}>{g.count} ({g.pct}%)</span>
+                  </div>
+                ))}
+              </div>
+            </article>
 
-        <div className="grid gap-5 lg:grid-cols-[1fr_0.95fr]">
-          <article className="rounded-[8px] border border-line bg-white p-5 shadow-card">
+            {/* Venue utilization */}
+            <article style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: "0 0 16px" }}>Venue utilization</p>
+              <div className="overflow-x-auto">
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                      {["Venue", "Capacity", "Used", "Util."].map((h) => (
+                        <th key={h} style={{ padding: "8px 0", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {venueUtilization.map((v) => (
+                      <tr key={v.venue} style={{ borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
+                        <td style={{ padding: "8px 0", fontWeight: 600 }}>{v.venue}</td>
+                        <td style={{ padding: "8px 0" }}>{v.capacity}</td>
+                        <td style={{ padding: "8px 0" }}>{v.used}</td>
+                        <td style={{ padding: "8px 0", fontWeight: 600, color: v.utilization >= 90 ? "#c2530a" : "#22863a" }}>{v.utilization}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+
+          {/* Partners */}
+          <article style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: 0 }}>Partners</p>
+                <h2 style={{ margin: "6px 0 0", fontSize: "20px", fontWeight: 700, letterSpacing: "-0.02em" }}>Hosted activities</h2>
+              </div>
+              <Users size={20} style={{ color: "#c2530a" }} />
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {partnerPerformance.map((partner) => (
+                <div key={partner.partner} style={{ borderRadius: "12px", border: "1px solid rgba(0,0,0,0.05)", padding: "14px" }}>
+                  <p style={{ fontSize: "14px", fontWeight: 600, margin: 0 }}>{partner.partner}</p>
+                  <p style={{ fontSize: "11px", color: "#78716c", margin: "2px 0 0" }}>{partner.type}</p>
+                  <div className="mt-3 grid grid-cols-3 gap-2" style={{ fontSize: "11px" }}>
+                    <span><strong>{partner.hostedActivities}</strong><br />hosted</span>
+                    <span><strong>{partner.attendance}</strong><br />attended</span>
+                    <span><strong>{partner.repeatContribution}%</strong><br />repeat</span>
+                  </div>
+                  <p style={{ marginTop: "10px", borderRadius: "8px", background: "rgba(255,140,50,0.06)", padding: "8px 10px", fontSize: "11px", lineHeight: 1.4, color: "#1a1a1a" }}>{partner.recommendation}</p>
+                </div>
+              ))}
+            </div>
+          </article>
+        </>
+      )}
+
+      {/* === GEOGRAPHY === */}
+      {section === "geography" && (
+        <>
+          <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <article style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: 0 }}>Neighborhood engagement</p>
+                  <h2 style={{ margin: "6px 0 0", fontSize: "20px", fontWeight: 700, letterSpacing: "-0.02em" }}>Rotterdam grouped signals</h2>
+                </div>
+                <span style={{ borderRadius: "8px", background: "rgba(255,140,50,0.08)", padding: "6px 12px", fontSize: "11px", fontWeight: 600, color: "#c2530a" }}>Min threshold: 6</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table style={{ width: "100%", minWidth: "620px", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                      {["Neighborhood", "Accepted", "Completion", "Repeat", "Status"].map((h) => (
+                        <th key={h} style={{ padding: "10px 0", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {neighborhoodEngagement.map((row) => {
+                      const hidden = row.participantGroups < 6;
+                      return (
+                        <tr key={row.name} style={{ borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
+                          <td style={{ padding: "10px 0" }}>
+                            <button
+                              onClick={() => setSelectedNeighborhood(row.name)}
+                              style={{
+                                display: "inline-flex", alignItems: "center", gap: "6px", borderRadius: "8px", padding: "5px 10px", fontSize: "13px", fontWeight: 600, border: 0, cursor: "pointer",
+                                background: selectedNeighborhood === row.name ? "#1a1a1a" : "rgba(0,0,0,0.03)",
+                                color: selectedNeighborhood === row.name ? "#fff" : "#1a1a1a",
+                                transition: "all 0.15s",
+                              }}
+                              type="button"
+                            >
+                              <MapPin size={12} />
+                              {row.name}
+                            </button>
+                          </td>
+                          <td style={{ padding: "10px 0", fontWeight: 600 }}>{hidden ? "—" : row.acceptedSuggestions}</td>
+                          <td style={{ padding: "10px 0" }}>{hidden ? "—" : `${row.completionRate}%`}</td>
+                          <td style={{ padding: "10px 0" }}>{hidden ? "—" : `${row.repeatRate}%`}</td>
+                          <td style={{ padding: "10px 0", color: "#78716c" }}>{row.status}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <aside style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: 0 }}>Selected</p>
+              <h3 style={{ margin: "8px 0 0", fontSize: "24px", fontWeight: 700, letterSpacing: "-0.03em" }}>{selected.name}</h3>
+              {safeSelected ? (
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  {[
+                    { label: "Accepted", val: String(selected.acceptedSuggestions) },
+                    { label: "Completion", val: `${selected.completionRate}%` },
+                    { label: "Repeat", val: `${selected.repeatRate}%` },
+                  ].map((s) => (
+                    <div key={s.label} style={{ borderRadius: "10px", background: "rgba(0,0,0,0.03)", padding: "12px" }}>
+                      <p style={{ fontSize: "10px", fontWeight: 600, color: "#a8a29e", margin: 0 }}>{s.label}</p>
+                      <p style={{ fontSize: "22px", fontWeight: 700, margin: "6px 0 0" }}>{s.val}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ marginTop: "16px", borderRadius: "10px", background: "rgba(0,0,0,0.03)", padding: "14px" }}>
+                  <p style={{ fontSize: "13px", fontWeight: 600, margin: 0 }}>Hidden for privacy</p>
+                  <p style={{ fontSize: "12px", color: "#78716c", margin: "4px 0 0" }}>Below minimum grouped threshold.</p>
+                </div>
+              )}
+              <div style={{ marginTop: "16px", borderRadius: "10px", border: "1px solid rgba(0,0,0,0.06)", padding: "14px" }}>
+                <p style={{ fontSize: "12px", fontWeight: 600, margin: 0 }}>Operational note</p>
+                <p style={{ fontSize: "12px", color: "#78716c", margin: "4px 0 0", lineHeight: 1.5 }}>
+                  {safeSelected ? selected.status : "Wait for larger opt-in group."}
+                </p>
+              </div>
+            </aside>
+          </div>
+        </>
+      )}
+
+      {/* === OUTCOMES === */}
+      {section === "outcomes" && (
+        <>
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            {connectionOutcomes.map((o) => (
+              <article key={o.metric} style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.85)", backdropFilter: "blur(6px)", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: 0 }}>{o.metric}</p>
+                <p style={{ fontSize: "36px", fontWeight: 700, letterSpacing: "-0.03em", margin: "12px 0 0", color: "#1a1a1a" }}>{o.value}</p>
+                <p style={{ fontSize: "12px", fontWeight: 600, color: "#78716c", margin: "8px 0 0" }}>{o.unit}</p>
+              </article>
+            ))}
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            {/* Satisfaction */}
+            <article style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: "0 0 16px" }}>Satisfaction breakdown</p>
+              <div className="space-y-3">
+                {satisfactionBreakdown.map((s) => (
+                  <div key={s.rating} className="flex items-center gap-4">
+                    <span style={{ fontSize: "13px", fontWeight: 600, minWidth: "30px" }}>{"★".repeat(s.rating)}</span>
+                    <div style={{ flex: 1, height: "6px", borderRadius: "4px", background: "rgba(0,0,0,0.04)", overflow: "hidden" }}>
+                      <div style={{ height: "100%", borderRadius: "4px", background: s.rating >= 4 ? "#22863a" : s.rating === 3 ? "#c2530a" : "#dc2626", width: `${Math.round((s.count / 89) * 100)}%` }} />
+                    </div>
+                    <span style={{ fontSize: "12px", color: "#78716c", minWidth: "70px", textAlign: "right" }}>{s.count} · {s.label}</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            {/* Repeat + completion */}
+            <article style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: "0 0 16px" }}>Meetup outcomes</p>
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { label: "Completion rate", value: `${metrics.completionRate}%`, desc: "of accepted suggestions" },
+                  { label: "Repeat rate", value: `${metrics.repeatRate}%`, desc: "of completed meetups" },
+                  { label: "Real-life meetups", value: metrics.completedMeetups.toLocaleString(), desc: "total completed" },
+                  { label: "Repeat meetups", value: metrics.repeatMeetups.toLocaleString(), desc: "same pair/group again" },
+                ].map((m) => (
+                  <div key={m.label} style={{ borderRadius: "10px", background: "rgba(0,0,0,0.03)", padding: "14px" }}>
+                    <p style={{ fontSize: "10px", fontWeight: 600, color: "#a8a29e", margin: 0 }}>{m.label}</p>
+                    <p style={{ fontSize: "28px", fontWeight: 700, margin: "6px 0 0" }}>{m.value}</p>
+                    <p style={{ fontSize: "11px", color: "#78716c", margin: "4px 0 0" }}>{m.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </div>
+
+          {/* LLM recommendations */}
+          <article style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: 0 }}>Policy suggestions</p>
+                <h2 style={{ margin: "6px 0 0", fontSize: "20px", fontWeight: 700, letterSpacing: "-0.02em" }}>From aggregate signals</h2>
+              </div>
+              <Lightbulb size={20} style={{ color: "#c2530a" }} />
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {llmRecommendations.map((item) => (
+                <div key={item.title} style={{ borderRadius: "12px", border: "1px solid rgba(0,0,0,0.05)", padding: "14px" }}>
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p style={{ fontSize: "14px", fontWeight: 600, margin: 0 }}>{item.title}</p>
+                    <span style={{ borderRadius: "6px", background: "rgba(0,0,0,0.04)", padding: "4px 8px", fontSize: "10px", fontWeight: 600, color: "#78716c" }}>{item.sourceType}</span>
+                  </div>
+                  <p style={{ fontSize: "12px", lineHeight: 1.5, color: "#78716c", margin: 0 }}>{item.evidence}</p>
+                  <p style={{ marginTop: "10px", borderRadius: "8px", background: "rgba(255,140,50,0.06)", padding: "8px 10px", fontSize: "11px", lineHeight: 1.4 }}>
+                    → {item.recommendation}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </article>
+        </>
+      )}
+
+      {/* === PRIVACY === */}
+      {section === "privacy" && (
+        <>
+          {/* AI role card */}
+          <article style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-orange">AI coordination role</p>
-                <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-normal">
+                <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#c2530a", margin: 0 }}>AI coordination role</p>
+                <h2 style={{ margin: "10px 0 0", fontSize: "24px", fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.2, color: "#1a1a1a" }}>
                   No loneliness detection. No individual scores. Only opt-in activity coordination.
-                </h1>
+                </h2>
               </div>
-              <Sparkles className="shrink-0 text-orange" size={24} />
+              <Sparkles className="shrink-0" size={22} style={{ color: "#c2530a" }} />
             </div>
             <div className="mt-5 grid gap-3 md:grid-cols-4">
               {["Interests", "Availability", "Rough area", "Comfort preferences"].map((item) => (
-                <div className="rounded-[8px] bg-tertiary px-3 py-3" key={item}>
-                  <p className="text-[13px] font-semibold">{item}</p>
-                  <p className="mt-1 text-[12px] leading-4 text-muted">Used for matching and scheduling only.</p>
+                <div key={item} style={{ borderRadius: "10px", background: "rgba(0,0,0,0.03)", padding: "12px" }}>
+                  <p style={{ fontSize: "13px", fontWeight: 600, margin: 0 }}>{item}</p>
+                  <p style={{ fontSize: "11px", color: "#78716c", margin: "4px 0 0", lineHeight: 1.4 }}>Matching only.</p>
                 </div>
               ))}
             </div>
@@ -214,250 +700,105 @@ export default function Dashboard({ acceptedCount, feedback, onMobile }: Dashboa
               <GuardrailChip>consent-based</GuardrailChip>
               <GuardrailChip>no mental-health inference</GuardrailChip>
               <GuardrailChip>no individual resident view</GuardrailChip>
-              <GuardrailChip>neighborhood thresholding</GuardrailChip>
             </div>
           </article>
 
-          <article className="rounded-[8px] border border-line bg-ink p-5 text-white shadow-card">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/60">Current lens</p>
-                <h2 className="mt-2 text-[24px] font-semibold tracking-normal">Rotterdam · {activeRangeLabel}</h2>
-              </div>
-              <button
-                className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-3 text-[12px] font-semibold text-ink"
-                onClick={() => setShowSafety((current) => !current)}
-                type="button"
-              >
-                {showSafety ? <EyeOff size={15} /> : <Eye size={15} />}
-                Why safe
-              </button>
-            </div>
-            <p className="mt-4 text-[13px] leading-5 text-white/70">
-              This view helps municipal teams spot where coordination friction is high: too few hosts, undersupplied venues,
-              or time slots that do not match resident opt-in availability.
-            </p>
-            {showSafety ? (
-              <div className="mt-5 rounded-[8px] border border-white/15 bg-white/10 p-4">
-                <p className="text-[13px] font-semibold">Safety model</p>
-                <p className="mt-2 text-[12px] leading-5 text-white/70">
-                  Counts are aggregated, neighborhood rows need a minimum group threshold, and rejected suggestions stay out
-                  of municipal reporting.
-                </p>
-              </div>
-            ) : null}
-          </article>
-        </div>
-
-        <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-          <article className="rounded-[8px] border border-line bg-white p-5 shadow-card">
+          {/* Visibility boundary */}
+          <article style={{ borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)", background: "rgba(255,255,255,0.88)", backdropFilter: "blur(6px)", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">Neighborhood engagement</p>
-                <h2 className="mt-1 text-[22px] font-semibold tracking-normal">Rotterdam grouped activity signals</h2>
+                <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a29e", margin: 0 }}>Privacy audit</p>
+                <h2 style={{ margin: "6px 0 0", fontSize: "20px", fontWeight: 700, letterSpacing: "-0.02em" }}>Visibility boundary</h2>
               </div>
-              <span className="rounded-full bg-orangeSoft px-3 py-1.5 text-[12px] font-semibold text-orange">Minimum group threshold: 6</span>
+              <button
+                onClick={() => setShowSafety((current) => !current)}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "9px", padding: "7px 14px", fontSize: "12px", fontWeight: 600, background: "#fff", cursor: "pointer" }}
+                type="button"
+              >
+                <Info size={13} />
+                {showSafety ? "Hide" : "Why safe"}
+              </button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] border-collapse text-left text-[13px]">
-                <thead>
-                  <tr className="border-b border-line text-[11px] uppercase tracking-[0.08em] text-muted">
-                    <th className="py-3 font-semibold">Neighborhood</th>
-                    <th className="py-3 font-semibold">Accepted</th>
-                    <th className="py-3 font-semibold">Completion</th>
-                    <th className="py-3 font-semibold">Repeat</th>
-                    <th className="py-3 font-semibold">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {neighborhoodEngagement.map((row) => {
-                    const hidden = row.participantGroups < 6;
-                    return (
-                      <tr className="border-b border-line last:border-0" key={row.name}>
-                        <td className="py-3">
-                          <button
-                            className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-semibold transition ${
-                              selectedNeighborhood === row.name ? "bg-ink text-white" : "bg-tertiary text-ink hover:bg-orangeSoft"
-                            }`}
-                            onClick={() => setSelectedNeighborhood(row.name)}
-                            type="button"
-                          >
-                            <MapPin size={14} />
-                            {row.name}
-                          </button>
-                        </td>
-                        <td className="py-3 font-semibold">{hidden ? "Hidden" : row.acceptedSuggestions}</td>
-                        <td className="py-3">{hidden ? "Hidden" : `${row.completionRate}%`}</td>
-                        <td className="py-3">{hidden ? "Hidden" : `${row.repeatRate}%`}</td>
-                        <td className="py-3 text-muted">{row.status}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div style={{ borderRadius: "12px", background: "rgba(0,0,0,0.03)", padding: "16px" }}>
+                <p style={{ fontSize: "13px", fontWeight: 600, margin: "0 0 10px" }}>Can see</p>
+                <div className="flex flex-wrap gap-2">
+                  {municipalityCanSee.map((item) => (
+                    <span key={item} style={{ borderRadius: "8px", background: "#fff", padding: "5px 10px", fontSize: "12px", fontWeight: 600 }}>{item}</span>
+                  ))}
+                </div>
+              </div>
+              <div style={{ borderRadius: "12px", background: "#1a1a1a", padding: "16px", color: "#fff" }}>
+                <p style={{ fontSize: "13px", fontWeight: 600, margin: "0 0 10px" }}>Cannot see</p>
+                <div className="flex flex-wrap gap-2">
+                  {municipalityCannotSee.map((item) => (
+                    <span key={item} style={{ borderRadius: "8px", background: "rgba(255,255,255,0.08)", padding: "5px 10px", fontSize: "12px", fontWeight: 600, color: "rgba(255,255,255,0.8)" }}>{item}</span>
+                  ))}
+                </div>
+              </div>
             </div>
-          </article>
-
-          <aside className="rounded-[8px] border border-line bg-white p-5 shadow-card">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">Selected detail</p>
-            <h3 className="mt-2 text-[24px] font-semibold tracking-normal">{selected.name}</h3>
-            {safeSelected ? (
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                <div className="rounded-[8px] bg-tertiary p-3">
-                  <p className="text-[11px] text-muted">Accepted</p>
-                  <p className="mt-1 text-[20px] font-semibold">{selected.acceptedSuggestions}</p>
-                </div>
-                <div className="rounded-[8px] bg-tertiary p-3">
-                  <p className="text-[11px] text-muted">Completion</p>
-                  <p className="mt-1 text-[20px] font-semibold">{selected.completionRate}%</p>
-                </div>
-                <div className="rounded-[8px] bg-tertiary p-3">
-                  <p className="text-[11px] text-muted">Repeat</p>
-                  <p className="mt-1 text-[20px] font-semibold">{selected.repeatRate}%</p>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-4 rounded-[8px] bg-tertiary p-4">
-                <p className="text-[13px] font-semibold">Hidden for privacy</p>
-                <p className="mt-1 text-[12px] leading-5 text-muted">This neighborhood is below the minimum grouped threshold.</p>
-              </div>
-            )}
-            <div className="mt-4 rounded-[8px] border border-line p-4">
-              <p className="text-[13px] font-semibold">Operational note</p>
-              <p className="mt-1 text-[12px] leading-5 text-muted">
-                {safeSelected ? selected.status : "Wait for a larger opt-in group before reporting engagement metrics."}
+            {showSafety ? (
+              <p style={{ marginTop: "16px", borderRadius: "10px", border: "1px solid rgba(0,0,0,0.06)", padding: "12px 14px", fontSize: "12px", lineHeight: 1.5, color: "#78716c" }}>
+                Aggregate counters from accepted activities and completed feedback only. Excludes resident settings, contacts, blocked, rejected, and any risk label.
               </p>
-            </div>
-          </aside>
-        </div>
-
-        <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-          <article className="rounded-[8px] border border-line bg-white p-5 shadow-card">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">Activity demand</p>
-                <h2 className="mt-1 text-[22px] font-semibold tracking-normal">Where coordination friction is highest</h2>
-              </div>
-              <BarChart3 className="text-orange" size={22} />
-            </div>
-            <div className="space-y-4">
-              {activityDemand.map((activity) => {
-                const total = activity.acceptedSuggestions + activity.unmetDemand;
-                return (
-                  <div key={activity.id}>
-                    <div className="mb-1 flex items-center justify-between gap-3 text-[13px]">
-                      <span className="font-semibold">{activity.label}</span>
-                      <span className="text-muted">{activity.acceptedSuggestions} accepted · {activity.unmetDemand} unmet</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-tertiary">
-                      <div className="h-full rounded-full bg-orange" style={{ width: `${Math.round((total / maxAccepted) * 100)}%` }} />
-                    </div>
-                    <p className="mt-1 text-[12px] text-muted">{activity.frictionNote}</p>
-                  </div>
-                );
-              })}
-            </div>
+            ) : null}
           </article>
+        </>
+      )}
+    </div>
+  );
+}
 
-          <article className="rounded-[8px] border border-line bg-white p-5 shadow-card">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">Partner/event performance</p>
-                <h2 className="mt-1 text-[22px] font-semibold tracking-normal">Hosted activities and repeat contribution</h2>
-              </div>
-              <Users className="text-orange" size={22} />
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {partnerPerformance.map((partner) => (
-                <div className="rounded-[8px] border border-line p-4" key={partner.partner}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[14px] font-semibold">{partner.partner}</p>
-                      <p className="text-[12px] text-muted">{partner.type}</p>
-                    </div>
-                    <ChevronRight className="text-muted" size={17} />
-                  </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-[12px]">
-                    <span><strong>{partner.hostedActivities}</strong><br />hosted</span>
-                    <span><strong>{partner.attendance}</strong><br />attended</span>
-                    <span><strong>{partner.repeatContribution}%</strong><br />repeat</span>
-                  </div>
-                  <p className="mt-3 rounded-[8px] bg-orangeSoft px-3 py-2 text-[12px] leading-5 text-ink">{partner.recommendation}</p>
-                </div>
-              ))}
-            </div>
-          </article>
+export default function Dashboard({ acceptedCount, feedback, onMobile }: DashboardProps) {
+  const [activeTab, setActiveTab] = useState<DashboardTab>("ai");
+
+  return (
+    <section
+      className="w-full min-h-screen"
+      style={{
+        background: "radial-gradient(circle at top left, rgba(255, 166, 77, 0.08), transparent 30%), radial-gradient(circle at bottom right, rgba(40, 40, 40, 0.04), transparent 26%), linear-gradient(180deg, #fefcfa 0%, #f7f4f0 100%)",
+        padding: "28px 28px 48px",
+      }}
+    >
+      {/* Tab header */}
+      <div className="mx-auto mb-8 flex w-full max-w-7xl flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <img alt="Gezellig" className="h-9 w-9" src={brandAssets.logoMark} />
+          <span style={{ fontSize: "18px", fontWeight: 800, letterSpacing: "-0.03em", color: "#1a1a1a" }}>{brandAssets.logoWordmark}</span>
+          <DutchFlag />
+          <span style={{ fontSize: "12px", fontWeight: 600, color: "#78716c" }}>Municipality pilot</span>
         </div>
-
-        <article className="rounded-[8px] border border-line bg-white p-5 shadow-card">
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">LLM recommendations</p>
-              <h2 className="mt-1 text-[22px] font-semibold tracking-normal">Hardcoded policy suggestions from aggregate signals</h2>
-            </div>
-            <Lightbulb className="text-orange" size={22} />
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {llmRecommendations.map((item) => (
-              <div className="rounded-[8px] border border-line p-4" key={item.title}>
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="text-[14px] font-semibold">{item.title}</p>
-                  <span className="shrink-0 rounded-full bg-tertiary px-2.5 py-1 text-[11px] font-semibold text-muted">{item.sourceType}</span>
-                </div>
-                <p className="text-[12px] leading-5 text-muted">{item.evidence}</p>
-                <p className="mt-3 rounded-[8px] bg-orangeSoft px-3 py-2 text-[12px] leading-5 text-ink">
-                  Recommendation: {item.recommendation}
-                </p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-4 rounded-[8px] bg-tertiary px-4 py-3 text-[12px] leading-5 text-muted">
-            These suggestions are generated from grouped trends and public outreach assumptions. They do not infer a condition
-            for any resident or neighborhood.
-          </p>
-        </article>
-
-        <article className="rounded-[8px] border border-line bg-white p-5 shadow-card">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">Privacy audit</p>
-              <h2 className="mt-1 text-[22px] font-semibold tracking-normal">Municipality visibility boundary</h2>
-            </div>
+        <div style={{ display: "flex", borderRadius: "12px", border: "1px solid rgba(0,0,0,0.06)", background: "#fff", padding: "3px" }}>
+          {([["ai", "AI Advisor"], ["data", "Data"]] as const).map(([id, label]) => (
             <button
-              className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-[12px] font-semibold"
-              onClick={() => setShowSafety((current) => !current)}
+              key={id}
+              onClick={() => setActiveTab(id)}
+              style={{
+                borderRadius: "9px", padding: "8px 18px", fontSize: "13px", fontWeight: 600, border: 0, cursor: "pointer",
+                background: activeTab === id ? "#1a1a1a" : "transparent",
+                color: activeTab === id ? "#fff" : "#78716c",
+                transition: "all 0.15s",
+              }}
               type="button"
             >
-              <Info size={15} />
-              {showSafety ? "Hide explanation" : "Why this is safe"}
+              {label}
             </button>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-[8px] bg-tertiary p-4">
-              <p className="mb-3 text-[14px] font-semibold">Can see</p>
-              <div className="flex flex-wrap gap-2">
-                {municipalityCanSee.map((item) => (
-                  <span className="rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold" key={item}>{item}</span>
-                ))}
-              </div>
-            </div>
-            <div className="rounded-[8px] bg-ink p-4 text-white">
-              <p className="mb-3 text-[14px] font-semibold">Cannot see</p>
-              <div className="flex flex-wrap gap-2">
-                {municipalityCannotSee.map((item) => (
-                  <span className="rounded-full bg-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/85" key={item}>{item}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-          {showSafety ? (
-            <p className="mt-4 rounded-[8px] border border-line bg-surface px-4 py-3 text-[13px] leading-5 text-muted">
-              The dashboard receives aggregate counters from accepted activities and completed feedback only. It excludes
-              resident settings data, contact details, blocked contacts, rejected suggestions, and any diagnosis or risk label.
-            </p>
-          ) : null}
-        </article>
+          ))}
+        </div>
+        <button
+          onClick={onMobile}
+          style={{ border: "1px solid rgba(0,0,0,0.08)", borderRadius: "12px", padding: "8px 16px", fontSize: "12px", fontWeight: 600, color: "#78716c", cursor: "pointer", background: "#fff" }}
+          type="button"
+        >
+          ← Resident app
+        </button>
       </div>
+
+      {activeTab === "ai" ? (
+        <AiAdvisorView />
+      ) : (
+        <DataView acceptedCount={acceptedCount} feedback={feedback} />
+      )}
     </section>
   );
 }
