@@ -19,7 +19,7 @@ const suggestionsSchema = {
       suggestions: {
         type: "array",
         minItems: 1,
-        maxItems: 4,
+        maxItems: 3,
         items: {
           type: "object",
           additionalProperties: false,
@@ -46,7 +46,7 @@ const buildInput = (body: Record<string, unknown>, candidates: unknown[]) => {
   const feedbackSummary = isRecord(body.feedbackSummary) ? body.feedbackSummary : {};
 
   return `You generate the suggested plans list for Gezellig in Rotterdam.
-Rank up to 4 candidate sessions for the resident.
+Rank up to 3 candidate sessions for the resident.
 Only use provided candidate IDs. Do not invent events, people, private details, or addresses.
 Return each candidate ID at most once.
 Explain coordination fit: interests, availability, rough area, comfort preferences, public place, and host presence.
@@ -111,7 +111,8 @@ export default async function handler(req: RequestLike, res: ResponseLike) {
           : [],
       });
       return items;
-    }, []);
+    }, [])
+    .slice(0, 3);
 
   json(res, 200, { suggestions });
 }
