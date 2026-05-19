@@ -1,4 +1,4 @@
-import { callOpenAIJson, isRecord, json, stableStringify } from "./openaiShared";
+import { callOpenAIJson, isRecord, json, stableStringify } from "./openaiShared.js";
 
 type RequestLike = {
   method?: string;
