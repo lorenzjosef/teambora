@@ -2273,7 +2273,7 @@ function FriendsScreen({
             <button className="cta-secondary h-9 px-3" onClick={() => onMessage(friend.person)} type="button">
               Message
             </button>
-            {friend.kind !== "invites" ? <button className="cta-secondary h-9 px-3" onClick={onPlan} type="button">Plan</button> : null}
+            {friend.kind === "suggested" ? <button className="cta-secondary h-9 px-3" onClick={onPlan} type="button">Invite</button> : null}
           </div>
         </div>
       ))}

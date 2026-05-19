@@ -1,8 +1,8 @@
 import type { ActivitySession, AvailabilitySlot, ComfortKey, Interest, ResidentProfile } from "./types";
 
 export const brandAssets = {
-  logoWordmark: "Gesellig",
-  logoMark: "https://www.figma.com/api/mcp/asset/56fe4e24-fc67-49db-bfc9-81042f09c4d7",
+  logoWordmark: "Gezellig",
+  logoMark: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23ff8c32'/%3E%3Ccircle cx='24' cy='28' r='3.5' fill='white'/%3E%3Ccircle cx='40' cy='28' r='3.5' fill='white'/%3E%3Cpath d='M20 38c3 6 7 9 12 9s9-3 12-9' stroke='white' stroke-width='3.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E",
   heroImage: "https://www.figma.com/api/mcp/asset/6a35cccc-51a2-4ddb-b303-8a754ceaf661",
   cityCardImage: "https://www.figma.com/api/mcp/asset/62bb4bb6-a083-43a3-8305-ae2948979bee",
   profileCardImage: "https://www.figma.com/api/mcp/asset/aaeeafc5-e073-4507-927a-7aaa80cebaa5",
