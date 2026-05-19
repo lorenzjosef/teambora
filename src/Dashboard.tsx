@@ -59,37 +59,79 @@ function GuardrailChip({ children }: { children: string }) {
   );
 }
 
-
-const FIXED_DASHBOARD_PROMPT = "In which regions would you recommend that we place QR codes to maximize sign-ups?";
-const FIXED_AI_RESPONSE = `Based on aggregated pilot data, I recommend prioritizing QR code placement in these areas:
-
-**1. Kralingen** — Highest evening demand (36 accepted, 72% completion). Place codes at Bibliotheek Rotterdam entrances, the park walking paths, and local cafes along Kralingse Plas.
-
-**2. Centrum** — Stable hosted uptake (29 accepted). Focus on Museumpark entrances, the central library branch, and coffee spots near Blaak station where foot traffic peaks 17:00-19:00.
-
-**3. Delfshaven** — Needs more venue slots (24 accepted, 61% completion). Target community centers, Sportcentrum West entrance, and the neighborhood market. This area has high unmet demand.
-
-**4. Katendrecht** — Small-group formats work well here (18 accepted, 38% repeat). Place codes in waterfront cafes and the SS Rotterdam visitor area.
-
-Avoid Charlois for now — participant groups are below the privacy threshold (4 groups). Wait for organic growth before investing in outreach there.
-
-Priority timing: codes placed near evening-accessible venues convert 2.3x better than daytime-only locations.`;
-
 type DashboardTab = "ai" | "data";
+
+type DashboardAdviceResponse = {
+  answer: string;
+  recommendations: {
+    title: string;
+    evidence: string;
+    recommendation: string;
+  }[];
+  fallbackUsed?: boolean;
+};
 
 function AiAdvisorView() {
   const { isRecording, start, stop, liveWords, finalText } = useVoiceInput();
   const [draft, setDraft] = useState("");
   const [showResult, setShowResult] = useState(false);
+  const [isAdvising, setIsAdvising] = useState(false);
+  const [adviceResult, setAdviceResult] = useState<DashboardAdviceResponse | null>(null);
+  const [adviceError, setAdviceError] = useState("");
   const visiblePrompt = draft || finalText;
 
-  const handleSubmit = useCallback(() => {
+  const fallbackAdvice = useCallback((question: string): DashboardAdviceResponse => ({
+    answer: `The AI advisor is unavailable, so this uses the local aggregate dashboard data. For "${question}", start with the highest-friction channels and activity types: QR-code signups convert strongly, evening walks have high demand, and public football capacity is constrained.`,
+    recommendations: llmRecommendations.slice(0, 3).map((item) => ({
+      title: item.title,
+      evidence: item.evidence,
+      recommendation: item.recommendation,
+    })),
+    fallbackUsed: true,
+  }), []);
+
+  const handleSubmit = useCallback(async () => {
     const text = draft.trim() || finalText.trim() || liveWords.trim();
     if (!text) return;
     if (isRecording) stop();
     if (!draft.trim()) setDraft(text);
+    setIsAdvising(true);
+    setAdviceResult(null);
+    setAdviceError("");
     setShowResult(true);
-  }, [draft, finalText, isRecording, liveWords, stop]);
+
+    try {
+      const response = await fetch("/api/dashboard-advice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: text,
+          city: "Rotterdam",
+          range: "Last 30 days",
+          aggregateMetrics: {
+            recommendations: llmRecommendations,
+            neighborhoods: neighborhoodEngagement,
+            activityDemand,
+            partners: partnerPerformance,
+            signupChannels,
+            peakTimes,
+          },
+        }),
+      });
+
+      if (!response.ok) throw new Error("Dashboard advisor unavailable");
+      const payload = await response.json() as DashboardAdviceResponse;
+      if (!payload || typeof payload.answer !== "string" || !Array.isArray(payload.recommendations)) {
+        throw new Error("Dashboard advisor returned invalid data");
+      }
+      setAdviceResult(payload);
+    } catch {
+      setAdviceResult(fallbackAdvice(text));
+      setAdviceError("Using local aggregate fallback");
+    } finally {
+      setIsAdvising(false);
+    }
+  }, [draft, fallbackAdvice, finalText, isRecording, liveWords, stop]);
 
   return (
     <>
@@ -212,23 +254,39 @@ function AiAdvisorView() {
           >
             <div style={{ marginBottom: "20px" }}>
               <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#c2530a", margin: 0 }}>Your request</p>
-              <p style={{ marginTop: "8px", fontSize: "14px", fontStyle: "italic", color: "#78716c" }}>"{draft}"</p>
+              <p style={{ marginTop: "8px", fontSize: "14px", fontStyle: "italic", color: "#78716c" }}>"{visiblePrompt}"</p>
             </div>
-            <div style={{ borderRadius: "12px", background: "rgba(0,0,0,0.03)", padding: "14px", marginBottom: "20px" }}>
-              <p style={{ fontSize: "12px", fontWeight: 600, margin: 0, color: "#1a1a1a" }}>Prototype notice</p>
-              <p style={{ fontSize: "12px", color: "#78716c", margin: "6px 0 0", lineHeight: 1.5 }}>
-                Since this is a prototype without a live LLM API, we process this fixed prompt instead:
-              </p>
-              <p style={{ fontSize: "12px", fontWeight: 500, color: "#1a1a1a", margin: "8px 0 0" }}>"{FIXED_DASHBOARD_PROMPT}"</p>
-            </div>
-            <div style={{ borderRadius: "12px", border: "1px solid rgba(0,0,0,0.06)", padding: "18px" }}>
-              <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#22863a", margin: "0 0 12px" }}>AI Response</p>
-              <div style={{ fontSize: "13px", lineHeight: 1.7, color: "#1a1a1a", whiteSpace: "pre-wrap" }}>
-                {FIXED_AI_RESPONSE}
+            {isAdvising ? (
+              <div style={{ borderRadius: "12px", border: "1px solid rgba(0,0,0,0.06)", padding: "18px", fontSize: "13px", color: "#78716c" }}>
+                Generating aggregate-only municipal advice...
               </div>
-            </div>
+            ) : adviceResult ? (
+              <div style={{ borderRadius: "12px", border: "1px solid rgba(0,0,0,0.06)", padding: "18px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center", marginBottom: "12px" }}>
+                  <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#22863a", margin: 0 }}>AI Response</p>
+                  {adviceResult.fallbackUsed || adviceError ? (
+                    <span style={{ borderRadius: "999px", background: "rgba(0,0,0,0.05)", padding: "4px 8px", fontSize: "10px", fontWeight: 700, color: "#78716c" }}>Fallback</span>
+                  ) : null}
+                </div>
+                <div style={{ fontSize: "13px", lineHeight: 1.7, color: "#1a1a1a", whiteSpace: "pre-wrap" }}>
+                  {adviceResult.answer}
+                </div>
+                <div style={{ marginTop: "16px", display: "grid", gap: "10px" }}>
+                  {adviceResult.recommendations.map((item) => (
+                    <div key={item.title} style={{ borderRadius: "10px", background: "rgba(255,140,50,0.06)", padding: "12px" }}>
+                      <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#1a1a1a" }}>{item.title}</p>
+                      <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#78716c", lineHeight: 1.5 }}>{item.evidence}</p>
+                      <p style={{ margin: "8px 0 0", fontSize: "12px", color: "#1a1a1a", lineHeight: 1.5 }}>→ {item.recommendation}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <button
-              onClick={() => setShowResult(false)}
+              onClick={() => {
+                setShowResult(false);
+                setAdviceResult(null);
+              }}
               style={{ marginTop: "20px", width: "100%", borderRadius: "12px", border: 0, background: "#1a1a1a", color: "#fff", padding: "14px", fontSize: "14px", fontWeight: 600, cursor: "pointer" }}
               type="button"
             >

@@ -3,6 +3,8 @@ dist
 .DS_Store
 .env
 .env.*
+.env.local
+openai_api_key.txt
 Supabase_API_KEY.txt
 *.tsbuildinfo
 vite.config.js

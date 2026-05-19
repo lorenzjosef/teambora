@@ -1184,31 +1184,20 @@ function SuggestionDetailSheet({
 type SuggestionsScreenProps = {
   acceptedList: ActivitySuggestion[];
   blockedContacts: string[];
+  feedback: Feedback[];
   onCreateEvent: () => void;
   onResetRejected: () => void;
+  profile: ResidentProfile;
   suggestions: ActivitySuggestion[];
   onAccept: (suggestion: ActivitySuggestion) => void;
   onMessage: (person: ChatPerson) => void;
   onReject: (id: string) => void;
 };
 
-const FIXED_PROMPT = "I'm really craving some sushi today, but I only have time from 6pm to 8pm. Please find me a matching event.";
-const FIXED_SUGGESTION: ActivitySuggestion = {
-  id: "ai-sushi-night",
-  title: "Sushi night at Sumo",
-  interest: "cooking",
-  locationName: "Sumo Rotterdam",
-  neighborhood: "Centrum",
-  isPublicPlace: true,
-  isCommunityHosted: false,
-  hostName: "Sumo staff",
-  groupSize: "small_group",
-  capacity: 6,
-  confirmedCount: 2,
-  time: { day: "Today", label: "Today evening", startTime: "18:00", endTime: "20:00" },
-  status: "open",
-  matchScore: 95,
-  matchReasons: ["Matches your craving for sushi", "Fits 18:00-20:00 window", "Public restaurant in Centrum"],
+type MatchApiResponse = {
+  suggestion: ActivitySuggestion | null;
+  explanation: string;
+  fallbackUsed?: boolean;
 };
 
 const WILDCARD_SUGGESTION: ActivitySuggestion = {
@@ -1229,17 +1218,82 @@ const WILDCARD_SUGGESTION: ActivitySuggestion = {
   matchReasons: ["Not based on your usual interests — suggested to help you meet people outside your normal routine."],
 };
 
-function AiPromptSection({ onAccept, onCreateEvent }: { onAccept: (s: ActivitySuggestion) => void; onCreateEvent: () => void }) {
+function AiPromptSection({
+  feedback,
+  onAccept,
+  onCreateEvent,
+  profile,
+  suggestions,
+}: {
+  feedback: Feedback[];
+  onAccept: (s: ActivitySuggestion) => void;
+  onCreateEvent: () => void;
+  profile: ResidentProfile;
+  suggestions: ActivitySuggestion[];
+}) {
   const { isRecording, start, stop, liveWords, finalText } = useVoiceInput();
   const [draft, setDraft] = useState("");
   const [showResult, setShowResult] = useState(false);
+  const [isMatching, setIsMatching] = useState(false);
+  const [matchResult, setMatchResult] = useState<MatchApiResponse | null>(null);
+  const [matchError, setMatchError] = useState("");
+  const fallbackSuggestion = suggestions[0] ?? WILDCARD_SUGGESTION;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const text = draft.trim() || finalText.trim() || liveWords.trim();
     if (!text) return;
     if (isRecording) stop();
     if (!draft.trim()) setDraft(text);
     setShowResult(true);
+    setIsMatching(true);
+    setMatchError("");
+    setMatchResult(null);
+
+    try {
+      const response = await fetch("/api/match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: text,
+          profile: {
+            neighborhood: profile.neighborhood,
+            travelRadiusKm: profile.travelRadiusKm,
+            interests: profile.interests,
+            comfort: profile.comfort,
+            availability: profile.availability,
+            routines: profile.routines,
+          },
+          feedbackSummary: {
+            completed: feedback.filter((item) => item.attended).length,
+            wantsRepeat: feedback.filter((item) => item.wantsRepeat).length,
+            averageRating: feedback.length
+              ? Math.round((feedback.reduce((sum, item) => sum + item.connectionRating, 0) / feedback.length) * 10) / 10
+              : null,
+          },
+          candidates: suggestions.slice(0, 8),
+        }),
+      });
+
+      if (!response.ok) throw new Error("Matcher unavailable");
+      const payload = await response.json() as MatchApiResponse;
+      if (!payload || (payload.suggestion !== null && typeof payload.suggestion?.id !== "string")) {
+        throw new Error("Matcher returned invalid data");
+      }
+      setMatchResult({
+        suggestion: payload.suggestion ?? fallbackSuggestion,
+        explanation: payload.explanation || "We found the closest available activity from your current options.",
+        fallbackUsed: payload.fallbackUsed,
+      });
+    } catch {
+      setMatchResult({
+        suggestion: fallbackSuggestion,
+        explanation: "We could not reach the AI matcher, so we used your local activity preferences instead.",
+        fallbackUsed: true,
+      });
+      setMatchError("Using local fallback");
+    } finally {
+      setIsMatching(false);
+    }
   };
 
   return (
@@ -1288,26 +1342,46 @@ function AiPromptSection({ onAccept, onCreateEvent }: { onAccept: (s: ActivitySu
                 <p className="text-[12px] font-semibold text-orange">Your request</p>
                 <p className="mt-1 text-[14px] italic text-muted">"{draft}"</p>
               </div>
-              <div className="rounded-[14px] bg-canvas p-3 text-[12px] leading-relaxed text-muted">
-                <p className="font-semibold text-ink">Prototype notice</p>
-                <p className="mt-1">Since this is a prototype without a live LLM API, we process this fixed prompt instead:</p>
-                <p className="mt-2 font-medium text-ink">"{FIXED_PROMPT}"</p>
-              </div>
-              <div>
-                <p className="text-[12px] font-semibold text-muted">Suggested match</p>
-                <div className="mt-2 rounded-[18px] border border-line bg-white p-3 shadow-card">
-                  <p className="text-[16px] font-semibold">{FIXED_SUGGESTION.title}</p>
-                  <p className="mt-0.5 text-[12px] text-muted">{FIXED_SUGGESTION.time.startTime}-{FIXED_SUGGESTION.time.endTime} · {FIXED_SUGGESTION.locationName}</p>
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {FIXED_SUGGESTION.matchReasons.map((r) => (
-                      <span className="rounded-full bg-orangeSoft px-2 py-0.5 text-[11px] font-medium text-orange" key={r}>{r}</span>
-                    ))}
+              {isMatching ? (
+                <div className="rounded-[18px] border border-line bg-white p-4 text-[13px] font-semibold text-muted shadow-card">
+                  Matching your request with available public activities...
+                </div>
+              ) : matchResult?.suggestion ? (
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[12px] font-semibold text-muted">Suggested match</p>
+                    {matchResult.fallbackUsed || matchError ? (
+                      <span className="rounded-full bg-tertiary px-2 py-1 text-[10px] font-semibold text-muted">Fallback</span>
+                    ) : (
+                      <span className="rounded-full bg-orangeSoft px-2 py-1 text-[10px] font-semibold text-orange">OpenAI matched</span>
+                    )}
+                  </div>
+                  <div className="mt-2 rounded-[18px] border border-line bg-white p-3 shadow-card">
+                    <p className="text-[16px] font-semibold">{matchResult.suggestion.title}</p>
+                    <p className="mt-0.5 text-[12px] text-muted">{matchResult.suggestion.time.startTime}-{matchResult.suggestion.time.endTime} · {matchResult.suggestion.locationName}</p>
+                    <p className="mt-2 text-[12px] leading-5 text-muted">{matchResult.explanation}</p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {matchResult.suggestion.matchReasons.map((r) => (
+                        <span className="rounded-full bg-orangeSoft px-2 py-0.5 text-[11px] font-medium text-orange" key={r}>{r}</span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="rounded-[18px] border border-line bg-white p-4 text-[13px] font-semibold text-muted shadow-card">
+                  No suitable activity was found. You can create your own event instead.
+                </div>
+              )}
               <button
-                className="cta w-full"
-                onClick={() => { onAccept(FIXED_SUGGESTION); setShowResult(false); setDraft(""); }}
+                className="cta w-full disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={isMatching || !matchResult?.suggestion}
+                onClick={() => {
+                  if (!matchResult?.suggestion) return;
+                  onAccept(matchResult.suggestion);
+                  setShowResult(false);
+                  setDraft("");
+                  setMatchResult(null);
+                }}
                 type="button"
               >
                 Sign up for this
@@ -1327,11 +1401,13 @@ function AiPromptSection({ onAccept, onCreateEvent }: { onAccept: (s: ActivitySu
 function SuggestionsScreen({
   acceptedList,
   blockedContacts,
+  feedback,
   onAccept,
   onCreateEvent,
   onMessage,
   onReject,
   onResetRejected,
+  profile,
   suggestions,
 }: SuggestionsScreenProps) {
   const [selectedSuggestion, setSelectedSuggestion] = useState<ActivitySuggestion | null>(null);
@@ -1358,7 +1434,7 @@ function SuggestionsScreen({
         </h1>
         <span className="inline-flex rounded-full bg-tertiary px-2.5 py-1 text-[12px] font-medium text-muted">Today</span>
       </div>
-      <AiPromptSection onAccept={onAccept} onCreateEvent={onCreateEvent} />
+      <AiPromptSection feedback={feedback} onAccept={onAccept} onCreateEvent={onCreateEvent} profile={profile} suggestions={suggestions} />
       <div className="space-y-3">
         <h2 className="text-[18px] font-semibold tracking-[-0.4px]">Who's around</h2>
         <AroundList blockedContacts={blockedContacts} onMessage={onMessage} />
@@ -1421,12 +1497,23 @@ function AddEventScreen({ onAdd, onBack }: AddEventScreenProps) {
   const [locationName, setLocationName] = useState("Public place in Rotterdam");
   const [neighborhood, setNeighborhood] = useState("Centrum");
   const [interest, setInterest] = useState<Interest>("community_events");
-  const [groupSize, setGroupSize] = useState<ActivitySession["groupSize"]>("small_group");
   const [capacity, setCapacity] = useState(6);
   const [isPublicPlace, setIsPublicPlace] = useState(true);
   const [isCommunityHosted, setIsCommunityHosted] = useState(false);
-  const [hostName, setHostName] = useState("Resident plan");
   const [invited, setInvited] = useState<string[]>([]);
+  const [inviteSearch, setInviteSearch] = useState("");
+  const groupSize: ActivitySession["groupSize"] = capacity === 2 ? "one_to_one" : "small_group";
+  const inviteOptions = [
+    ...peopleCards
+      .filter((person) => person.name !== "Alex Thomas")
+      .map((person) => ({ name: person.name, image: person.image, reason: person.note ? `Friend · ${person.note}` : "Friend" })),
+    ...suggestedInvites.map((person) => ({ ...person, reason: `Suggested · ${person.reason}` })),
+  ];
+  const filteredInviteOptions = inviteOptions.filter((person) => {
+    const query = inviteSearch.trim().toLowerCase();
+    if (!query) return true;
+    return person.name.toLowerCase().includes(query) || person.reason.toLowerCase().includes(query);
+  });
 
   const canContinue = [
     title.trim().length > 0 && startTime.trim().length > 0 && endTime.trim().length > 0,
@@ -1461,7 +1548,7 @@ function AddEventScreen({ onAdd, onBack }: AddEventScreenProps) {
       neighborhood,
       isPublicPlace,
       isCommunityHosted,
-      hostName: hostName.trim() || "Resident plan",
+      hostName: "Resident plan",
       groupSize,
       capacity,
       confirmedCount: Math.min(capacity, Math.max(1, invited.length + 1)),
@@ -1477,6 +1564,7 @@ function AddEventScreen({ onAdd, onBack }: AddEventScreenProps) {
     setLocationName("Public place in Rotterdam");
     setNeighborhood("Centrum");
     setInvited([]);
+    setInviteSearch("");
     setWizardStep(0);
   };
 
@@ -1593,41 +1681,13 @@ function AddEventScreen({ onAdd, onBack }: AddEventScreenProps) {
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              className={`rounded-[18px] border px-4 py-3 text-left shadow-card ${groupSize === "small_group" ? "border-orange bg-orangeSoft" : "border-line bg-white"}`}
-              onClick={() => setGroupSize("small_group")}
-              type="button"
-            >
-              <p className="text-[14px] font-semibold">Small group</p>
-              <p className="text-[12px] text-muted">2-6 people</p>
-            </button>
-            <button
-              className={`rounded-[18px] border px-4 py-3 text-left shadow-card ${groupSize === "one_to_one" ? "border-orange bg-orangeSoft" : "border-line bg-white"}`}
-              onClick={() => {
-                setGroupSize("one_to_one");
-                setCapacity(2);
-              }}
-              type="button"
-            >
-              <p className="text-[14px] font-semibold">One-to-one</p>
-              <p className="text-[12px] text-muted">2 people</p>
-            </button>
-          </div>
           <label className="block space-y-2">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Capacity</span>
-            <input
-              className="input"
-              min={groupSize === "one_to_one" ? 2 : 3}
-              max={12}
-              onChange={(event) => setCapacity(Number(event.target.value))}
-              type="number"
-              value={capacity}
-            />
-          </label>
-          <label className="block space-y-2">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Host label</span>
-            <input className="input" onChange={(event) => setHostName(event.target.value)} value={hostName} />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Capacity, including you</span>
+            <select className="input" onChange={(event) => setCapacity(Number(event.target.value))} value={capacity}>
+              {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((count) => (
+                <option key={count} value={count}>{count} people</option>
+              ))}
+            </select>
           </label>
           <button className="soft-card w-full text-left" onClick={() => setIsCommunityHosted(!isCommunityHosted)} type="button">
             <div className="flex items-center justify-between">
@@ -1644,9 +1704,17 @@ function AddEventScreen({ onAdd, onBack }: AddEventScreenProps) {
       ) : null}
 
       {wizardStep === 3 ? (
-        <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Suggested invites</p>
-          {suggestedInvites.map((p) => (
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Invite people</p>
+            <input
+              className="input"
+              onChange={(event) => setInviteSearch(event.target.value)}
+              placeholder="Search friends or suggested invites"
+              value={inviteSearch}
+            />
+          </div>
+          {filteredInviteOptions.map((p) => (
             <button
               className={`flex w-full items-center gap-3 rounded-[18px] border bg-white px-3 py-2.5 shadow-card transition ${invited.includes(p.name) ? "border-orange" : "border-line"}`}
               key={p.name}
@@ -1665,6 +1733,11 @@ function AddEventScreen({ onAdd, onBack }: AddEventScreenProps) {
               )}
             </button>
           ))}
+          {filteredInviteOptions.length === 0 ? (
+            <div className="rounded-[18px] border border-line bg-white px-4 py-3 text-[13px] font-semibold text-muted shadow-card">
+              No people found
+            </div>
+          ) : null}
           <button className="cta-secondary mt-2 w-full" onClick={goNext} type="button">Skip invites</button>
         </div>
       ) : null}
@@ -1680,7 +1753,7 @@ function AddEventScreen({ onAdd, onBack }: AddEventScreenProps) {
             <div className="mt-3 space-y-2 text-[13px] leading-5 text-muted">
               <p><span className="font-semibold text-ink">Location:</span> {locationName}</p>
               <p><span className="font-semibold text-ink">Time:</span> {day}, {startTime}-{endTime}</p>
-              <p><span className="font-semibold text-ink">Group:</span> {groupSize === "small_group" ? "Small group" : "One-to-one"} · {capacity} capacity</p>
+              <p><span className="font-semibold text-ink">Capacity:</span> {capacity} people, including you</p>
               <p><span className="font-semibold text-ink">Setting:</span> {isPublicPlace ? "Public place" : "Private setting"}{isCommunityHosted ? " · host present" : ""}</p>
               <p><span className="font-semibold text-ink">Invited:</span> {invited.length ? invited.join(", ") : "No one yet"}</p>
             </div>
@@ -2501,14 +2574,12 @@ export default function App() {
   const [showConfirmedPopup, setShowConfirmedPopup] = useState(false);
   const [showRepeatInvitation, setShowRepeatInvitation] = useState(false);
   const [repeatInvitationShown, setRepeatInvitationShown] = useState(false);
-  const [userEvents, setUserEvents] = useState<ActivitySession[]>([]);
   const [blockedContacts, setBlockedContacts] = useState<string[]>([]);
   const [friendInvites, setFriendInvites] = useState<string[]>(["Ann James"]);
 
-  const allSessions = useMemo(() => [...userEvents, ...sessions], [userEvents]);
   const suggestions = useMemo(
-    () => rankSuggestions(profile, allSessions, rejectedIds, blockedIds, feedback),
-    [allSessions, blockedIds, feedback, profile, rejectedIds],
+    () => rankSuggestions(profile, sessions, rejectedIds, blockedIds, feedback),
+    [blockedIds, feedback, profile, rejectedIds],
   );
 
   useEffect(() => {
@@ -2599,8 +2670,14 @@ export default function App() {
     setBlockedIds([]);
   };
   const addUserEvent = (event: ActivitySession) => {
-    setUserEvents((current) => [event, ...current]);
-    setStep("groups");
+    const calendarEvent: ActivitySuggestion = {
+      ...event,
+      matchScore: 100,
+      matchReasons: ["Created by you"],
+    };
+    setAcceptedList((current) => [calendarEvent, ...current]);
+    setLastAccepted(calendarEvent);
+    setStep("calendar");
   };
   const cancelAccepted = () => {
     if (lastAccepted) {
@@ -2711,11 +2788,13 @@ export default function App() {
         <SuggestionsScreen
           acceptedList={acceptedList}
           blockedContacts={blockedContacts}
+          feedback={feedback}
           onAccept={acceptSuggestion}
           onCreateEvent={goAddEvent}
           onMessage={openChat}
           onReject={rejectSuggestion}
           onResetRejected={resetRejected}
+          profile={profile}
           suggestions={suggestions}
         />
       );
@@ -2748,11 +2827,13 @@ export default function App() {
         <SuggestionsScreen
           acceptedList={acceptedList}
           blockedContacts={blockedContacts}
+          feedback={feedback}
           onAccept={acceptSuggestion}
           onCreateEvent={goAddEvent}
           onMessage={openChat}
           onReject={rejectSuggestion}
           onResetRejected={resetRejected}
+          profile={profile}
           suggestions={suggestions}
         />
       );
@@ -2803,11 +2884,13 @@ export default function App() {
         <SuggestionsScreen
           acceptedList={acceptedList}
           blockedContacts={blockedContacts}
+          feedback={feedback}
           onAccept={acceptSuggestion}
           onCreateEvent={goAddEvent}
           onMessage={openChat}
           onReject={rejectSuggestion}
           onResetRejected={resetRejected}
+          profile={profile}
           suggestions={suggestions}
         />
       );
