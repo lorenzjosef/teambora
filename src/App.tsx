@@ -127,6 +127,9 @@ const inferInterestFromText = (text: string): Interest => {
   if (lower.includes("cook")) return "cooking";
   if (lower.includes("study")) return "studying";
   if (lower.includes("padel")) return "padel";
+  if (lower.includes("basketball") || lower.includes("basketbal") || lower.includes("hoops")) return "basketball";
+  if (lower.includes("fencing") || lower.includes("schermen")) return "fencing";
+  if (lower.includes("hackathon") || lower.includes("coding") || lower.includes("startup")) return "hackathons";
   if (lower.includes("football") || lower.includes("soccer")) return "football";
   if (lower.includes("cinema") || lower.includes("movie")) return "cinema";
   return "community_events";
@@ -1188,6 +1191,7 @@ type SuggestionsScreenProps = {
   onCreateEvent: () => void;
   onResetRejected: () => void;
   profile: ResidentProfile;
+  source: "ai" | "local";
   suggestions: ActivitySuggestion[];
   onAccept: (suggestion: ActivitySuggestion) => void;
   onMessage: (person: ChatPerson) => void;
@@ -1408,6 +1412,7 @@ function SuggestionsScreen({
   onReject,
   onResetRejected,
   profile,
+  source,
   suggestions,
 }: SuggestionsScreenProps) {
   const [selectedSuggestion, setSelectedSuggestion] = useState<ActivitySuggestion | null>(null);
@@ -1441,7 +1446,9 @@ function SuggestionsScreen({
       </div>
       <div className="flex items-center justify-between">
         <h2 className="text-[18px] font-semibold tracking-[-0.4px]">Suggested plans</h2>
-        <span className="text-[16px] leading-none text-muted">↕</span>
+        <span className="rounded-full bg-tertiary px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
+          {source === "ai" ? "LLM generated" : "Local fallback"}
+        </span>
       </div>
       {visibleSuggestions.length > 0 ? (
         <div className="grid gap-3">
@@ -2576,11 +2583,18 @@ export default function App() {
   const [repeatInvitationShown, setRepeatInvitationShown] = useState(false);
   const [blockedContacts, setBlockedContacts] = useState<string[]>([]);
   const [friendInvites, setFriendInvites] = useState<string[]>(["Ann James"]);
+  const [llmSuggestions, setLlmSuggestions] = useState<ActivitySuggestion[] | null>(null);
+  const [llmSuggestionKey, setLlmSuggestionKey] = useState("");
 
-  const suggestions = useMemo(
-    () => rankSuggestions(profile, sessions, rejectedIds, blockedIds, feedback),
+  const candidateSuggestions = useMemo(
+    () => rankSuggestions(profile, sessions, rejectedIds, blockedIds, feedback, 12),
     [blockedIds, feedback, profile, rejectedIds],
   );
+  const candidateSuggestionKey = useMemo(() => candidateSuggestions.map((item) => item.id).join("|"), [candidateSuggestions]);
+  const suggestions = useMemo(() => {
+    return (llmSuggestions && llmSuggestionKey === candidateSuggestionKey && llmSuggestions.length > 0 ? llmSuggestions : candidateSuggestions).slice(0, 4);
+  }, [candidateSuggestionKey, candidateSuggestions, llmSuggestionKey, llmSuggestions]);
+  const suggestionSource: "ai" | "local" = llmSuggestions && llmSuggestionKey === candidateSuggestionKey && llmSuggestions.length > 0 ? "ai" : "local";
 
   useEffect(() => {
     const onHomepage = mode === "mobile" && (step === "groups" || step === "home");
@@ -2593,6 +2607,50 @@ export default function App() {
 
     return () => window.clearTimeout(timer);
   }, [mode, repeatInvitationShown, step]);
+
+  useEffect(() => {
+    const onSuggestionsPage = mode === "mobile" && (step === "groups" || step === "home" || step === "confirmed");
+    if (!onSuggestionsPage || candidateSuggestions.length === 0) return;
+
+    const controller = new AbortController();
+
+    fetch("/api/suggestions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        profile: {
+          neighborhood: profile.neighborhood,
+          travelRadiusKm: profile.travelRadiusKm,
+          interests: profile.interests,
+          comfort: profile.comfort,
+          availability: profile.availability,
+          routines: profile.routines,
+        },
+        feedbackSummary: {
+          completed: feedback.filter((item) => item.attended).length,
+          wantsRepeat: feedback.filter((item) => item.wantsRepeat).length,
+        },
+        candidates: candidateSuggestions,
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("Suggestion generator unavailable");
+        return response.json() as Promise<{ suggestions?: ActivitySuggestion[] }>;
+      })
+      .then((payload) => {
+        if (!payload.suggestions || payload.suggestions.length === 0) throw new Error("No generated suggestions");
+        setLlmSuggestions(payload.suggestions);
+        setLlmSuggestionKey(candidateSuggestionKey);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setLlmSuggestions(null);
+        setLlmSuggestionKey("");
+      });
+
+    return () => controller.abort();
+  }, [candidateSuggestionKey, candidateSuggestions, feedback, mode, profile, step]);
 
   const goHome = () => {
     setMode("mobile");
@@ -2795,6 +2853,7 @@ export default function App() {
           onReject={rejectSuggestion}
           onResetRejected={resetRejected}
           profile={profile}
+          source={suggestionSource}
           suggestions={suggestions}
         />
       );
@@ -2834,6 +2893,7 @@ export default function App() {
           onReject={rejectSuggestion}
           onResetRejected={resetRejected}
           profile={profile}
+          source={suggestionSource}
           suggestions={suggestions}
         />
       );
@@ -2891,6 +2951,7 @@ export default function App() {
           onReject={rejectSuggestion}
           onResetRejected={resetRejected}
           profile={profile}
+          source={suggestionSource}
           suggestions={suggestions}
         />
       );

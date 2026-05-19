@@ -14,6 +14,7 @@ export function rankSuggestions(
   rejectedIds: string[],
   blockedIds: string[],
   feedback: Feedback[],
+  limit = 3,
 ): ActivitySuggestion[] {
   return sessions
     .filter((session) => session.status === "open")
@@ -63,5 +64,5 @@ export function rankSuggestions(
       };
     })
     .sort((a, b) => b.matchScore - a.matchScore)
-    .slice(0, 3);
+    .slice(0, limit);
 }
