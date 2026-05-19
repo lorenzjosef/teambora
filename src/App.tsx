@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
   CalendarDays,
   Check,
@@ -21,8 +22,8 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { GeselligMark } from "./Brand";
 import { useVoiceInput } from "./voice";
+import businessPlanMarkdown from "../business_plan_v1.md?raw";
 import {
   activityImages,
   brandAssets,
@@ -57,7 +58,7 @@ type Step =
   | "feedback"
   | "feedbackSuccess"
   | "reported";
-type ViewMode = "mobile" | "dashboard";
+type ViewMode = "business" | "mobile" | "dashboard";
 type ChatPerson = (typeof peopleCards)[number];
 
 const onboardingSteps: Step[] = ["welcome", "profile", "interests", "comfort", "calendarConnect", "manualAvailability", "habits"];
@@ -152,34 +153,142 @@ function DutchFlag() {
   );
 }
 
-function Logo() {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="grid h-9 w-9 place-items-center rounded-full bg-white text-ink">
-        <GeselligMark className="h-7 w-7" />
-      </div>
-      <div className="leading-none">
-        <p className="text-[13px] font-black">{brandAssets.logoWordmark}</p>
-        <p className="text-[10px] font-medium text-muted">Rotterdam pilot</p>
-      </div>
-    </div>
-  );
-}
-
 function ViewToggle({ mode, setMode }: { mode: ViewMode; setMode: (mode: ViewMode) => void }) {
   return (
     <div className="view-toggle" aria-label="Prototype view">
-      {(["mobile", "dashboard"] as const).map((item) => (
+      {(["business", "mobile", "dashboard"] as const).map((item) => (
         <button
           className={`view-toggle-button ${mode === item ? "view-toggle-button-active" : ""}`}
           key={item}
           onClick={() => setMode(item)}
           type="button"
         >
-          {item === "mobile" ? "Mobile app" : "Dashboard"}
+          {item === "business" ? "Business Plan" : item === "mobile" ? "Mobile app" : "Dashboard"}
         </button>
       ))}
     </div>
+  );
+}
+
+const renderInlineMarkdown = (text: string): ReactNode[] => {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+};
+
+function BusinessPlanMarkdown({ markdown }: { markdown: string }) {
+  const lines = markdown.split("\n");
+  const blocks: ReactNode[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const trimmed = line.trim();
+
+    if (!trimmed) continue;
+    if (trimmed === "---") {
+      blocks.push(<hr className="my-8 border-line" key={index} />);
+      continue;
+    }
+    if (trimmed.startsWith("# ")) {
+      blocks.push(<h1 className="mt-2 text-[42px] font-semibold leading-[46px] tracking-normal" key={index}>{renderInlineMarkdown(trimmed.slice(2))}</h1>);
+      continue;
+    }
+    if (trimmed.startsWith("## ")) {
+      blocks.push(<h2 className="mt-10 text-[26px] font-semibold leading-[32px] tracking-normal" key={index}>{renderInlineMarkdown(trimmed.slice(3))}</h2>);
+      continue;
+    }
+    if (trimmed.startsWith("### ")) {
+      blocks.push(<h3 className="mt-6 text-[18px] font-semibold leading-6" key={index}>{renderInlineMarkdown(trimmed.slice(4))}</h3>);
+      continue;
+    }
+    if (trimmed.startsWith("> ")) {
+      const quoteLines: string[] = [];
+      while (index < lines.length && lines[index].trim().startsWith("> ")) {
+        quoteLines.push(lines[index].trim().slice(2));
+        index += 1;
+      }
+      index -= 1;
+      blocks.push(
+        <blockquote className="my-5 rounded-[8px] border-l-4 border-orange bg-orangeSoft px-4 py-3 text-[15px] font-semibold leading-6 text-ink" key={index}>
+          {quoteLines.map((item) => renderInlineMarkdown(item)).flat()}
+        </blockquote>,
+      );
+      continue;
+    }
+    if (trimmed.startsWith("|")) {
+      const tableLines: string[] = [];
+      while (index < lines.length && lines[index].trim().startsWith("|")) {
+        tableLines.push(lines[index].trim());
+        index += 1;
+      }
+      index -= 1;
+      const rows = tableLines
+        .filter((row) => !/^\|[-\s|]+\|$/.test(row))
+        .map((row) => row.split("|").slice(1, -1).map((cell) => cell.trim()));
+      blocks.push(
+        <div className="my-5 overflow-x-auto rounded-[8px] border border-line bg-white" key={index}>
+          <table className="w-full min-w-[620px] text-left text-[13px]">
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr className={rowIndex === 0 ? "bg-tertiary font-semibold" : "border-t border-line"} key={`${index}-${rowIndex}`}>
+                  {row.map((cell) => (
+                    <td className="px-4 py-3 align-top" key={cell}>{renderInlineMarkdown(cell)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      continue;
+    }
+    if (/^\d+\.\s/.test(trimmed) || trimmed.startsWith("- ")) {
+      const listItems: string[] = [];
+      const ordered = /^\d+\.\s/.test(trimmed);
+      while (index < lines.length && (ordered ? /^\d+\.\s/.test(lines[index].trim()) : lines[index].trim().startsWith("- "))) {
+        listItems.push(lines[index].trim().replace(/^\d+\.\s/, "").replace(/^-\s/, ""));
+        index += 1;
+      }
+      index -= 1;
+      const ListTag = ordered ? "ol" : "ul";
+      blocks.push(
+        <ListTag className={`my-4 space-y-2 text-[15px] leading-7 text-muted ${ordered ? "list-decimal" : "list-disc"} pl-6`} key={index}>
+          {listItems.map((item) => <li key={item}>{renderInlineMarkdown(item)}</li>)}
+        </ListTag>,
+      );
+      continue;
+    }
+
+    blocks.push(<p className="my-4 text-[15px] leading-7 text-muted" key={index}>{renderInlineMarkdown(trimmed)}</p>);
+  }
+
+  return <div>{blocks}</div>;
+}
+
+function BusinessPlanView() {
+  return (
+    <section className="w-full">
+      <div className="mx-auto w-full max-w-5xl">
+        <div className="mb-5 rounded-[8px] border border-line bg-white px-5 py-5 shadow-card">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <img alt="" className="h-12 w-12 rounded-[16px]" src={brandAssets.logoMark} />
+              <div>
+                <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-orange">Business Plan</p>
+                <h1 className="text-[28px] font-semibold leading-tight tracking-normal">{brandAssets.logoWordmark}</h1>
+              </div>
+            </div>
+            <span className="rounded-full bg-tertiary px-3 py-1.5 text-[12px] font-semibold text-muted">The Lonely City · Rotterdam pilot</span>
+          </div>
+        </div>
+        <article className="rounded-[8px] border border-line bg-white px-6 py-7 shadow-card md:px-10 md:py-10">
+          <BusinessPlanMarkdown markdown={businessPlanMarkdown} />
+        </article>
+      </div>
+    </section>
   );
 }
 
@@ -202,7 +311,7 @@ function AroundList({
   blockedContacts: string[];
   onMessage: (person: ChatPerson) => void;
 }) {
-  const visiblePeople = peopleCards.filter((person) => !blockedContacts.includes(person.name));
+  const visiblePeople = peopleCards.filter((person) => !blockedContacts.includes(person.name) && person.name !== "Alex Thomas");
 
   return (
     <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -249,36 +358,46 @@ function Progress({ step }: { step: Step }) {
   );
 }
 
-function OnboardingHeader() {
+function OnboardingHeader({ onBack }: { onBack: () => void }) {
   return (
-    <header className="relative flex h-20 items-center justify-center">
-      <GeselligMark className="h-14 w-14 text-ink" />
-      <div className="absolute right-0 top-3">
+    <header className="relative flex items-center justify-center py-3">
+      <button
+        className="absolute left-0 inline-flex items-center gap-1.5 text-[13px] font-bold text-ink transition active:scale-95"
+        onClick={onBack}
+        type="button"
+        aria-label="Back"
+      >
+        <ArrowLeft size={22} strokeWidth={2.6} />
+        Back
+      </button>
+      <div className="flex items-center gap-2">
+        <img alt="" className="h-8 w-8 object-contain" src={brandAssets.logoMark} />
+        <span className="text-base font-bold tracking-tight">{brandAssets.logoWordmark}</span>
+      </div>
+      <div className="absolute right-0">
         <DutchFlag />
       </div>
     </header>
   );
 }
 
-function AppHeader() {
+function BackButton({ label = "Back", onBack }: { label?: string; onBack: () => void }) {
   return (
-    <header className="mb-5 flex items-center justify-between">
-      <Logo />
-      <div className="flex items-center gap-2">
-        <DutchFlag />
-      </div>
-    </header>
+    <button className="inline-flex items-center gap-2 text-[13px] font-semibold text-muted transition hover:text-ink" onClick={onBack} type="button">
+      <ArrowLeft size={16} />
+      {label}
+    </button>
   );
 }
 
 function WelcomeScreen({ onNext }: { onNext: () => void }) {
   return (
     <section className="flex flex-1 flex-col">
-      <div className="flex flex-1 items-center">
-        <div>
-          <h1 className="title-lg">Make free moments social.</h1>
-          <p className="body-copy mt-2">Find a walk, coffee, museum visit, or local table that fits your time and comfort.</p>
+      <div className="flex flex-1 flex-col items-center justify-center gap-3">
+        <div className="grid h-24 w-24 place-items-center rounded-[32px] bg-white shadow-card">
+          <img alt="" className="h-16 w-16 object-contain" src={brandAssets.logoMark} />
         </div>
+        <span className="text-2xl font-bold tracking-tight">{brandAssets.logoWordmark}</span>
       </div>
       <div className="space-y-3 pb-4">
         <button className="cta w-full" onClick={onNext} type="button">
@@ -877,14 +996,26 @@ function HabitsScreen({ profile, setProfile, onNext }: AvailabilityScreenProps) 
 }
 
 type SuggestionCardProps = {
+  onOpen: (suggestion: ActivitySuggestion) => void;
   suggestion: ActivitySuggestion;
   onAccept: (suggestion: ActivitySuggestion) => void;
   onReject: (id: string) => void;
 };
 
-function SuggestionCard({ suggestion, onAccept, onReject }: SuggestionCardProps) {
+function SuggestionCard({ onAccept, onOpen, onReject, suggestion }: SuggestionCardProps) {
   return (
-    <article className="rounded-[24px] bg-white p-3 shadow-card">
+    <article
+      className="cursor-pointer rounded-[24px] bg-white p-3 shadow-card transition active:scale-[0.99]"
+      onClick={() => onOpen(suggestion)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen(suggestion);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
       <div className="flex gap-3">
         <div className="relative h-[86px] w-[86px] shrink-0 overflow-hidden rounded-[18px] bg-tertiary">
           <img alt="" className="h-full w-full object-cover" src={getSuggestionImage(suggestion)} />
@@ -892,11 +1023,14 @@ function SuggestionCard({ suggestion, onAccept, onReject }: SuggestionCardProps)
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <p className="truncate text-[12px] font-semibold text-muted">{suggestion.hostName ?? "Gesellig"} hosts</p>
+            <p className="truncate text-[12px] font-semibold text-muted">{suggestion.hostName ?? "Gezellig"} hosts</p>
             <span className="shrink-0 text-[12px] font-semibold text-orange">{suggestion.matchScore}% fit</span>
           </div>
           <h2 className="mt-1 text-[18px] font-semibold leading-[21px] tracking-[-0.4px]">{suggestion.title}</h2>
           <p className="mt-2 truncate text-[13px] text-muted">{suggestion.neighborhood}</p>
+          {suggestion.id === WILDCARD_SUGGESTION.id ? (
+            <p className="mt-2 line-clamp-2 text-[12px] leading-4 text-muted">{suggestion.matchReasons[0]}</p>
+          ) : null}
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
@@ -907,14 +1041,143 @@ function SuggestionCard({ suggestion, onAccept, onReject }: SuggestionCardProps)
         <span className="rounded-full bg-tertiary px-2.5 py-1 text-[11px] font-semibold text-muted">
           {suggestion.confirmedCount}/{suggestion.capacity} spots
         </span>
-        <button className="rounded-full bg-ink px-4 py-2 text-[12px] font-semibold text-white" onClick={() => onAccept(suggestion)} type="button">
+        <button
+          className="rounded-full bg-ink px-4 py-2 text-[12px] font-semibold text-white"
+          onClick={(event) => {
+            event.stopPropagation();
+            onAccept(suggestion);
+          }}
+          type="button"
+        >
           Accept
         </button>
-        <button className="grid h-9 w-9 place-items-center rounded-full bg-tertiary text-ink" onClick={() => onReject(suggestion.id)} type="button" aria-label="Reject">
+        <button
+          className="grid h-9 w-9 place-items-center rounded-full bg-tertiary text-ink"
+          onClick={(event) => {
+            event.stopPropagation();
+            onReject(suggestion.id);
+          }}
+          type="button"
+          aria-label="Reject"
+        >
           <X size={15} />
         </button>
       </div>
     </article>
+  );
+}
+
+function SuggestionDetailSheet({
+  onAccept,
+  onClose,
+  onReject,
+  suggestion,
+}: {
+  onAccept: (suggestion: ActivitySuggestion) => void;
+  onClose: () => void;
+  onReject: (id: string) => void;
+  suggestion: ActivitySuggestion;
+}) {
+  const openSpots = suggestion.capacity - suggestion.confirmedCount;
+
+  return (
+    <div className="absolute inset-0 z-50 flex items-end justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40" />
+      <div
+        className="relative mx-auto flex max-h-[calc(100%-18px)] w-full animate-slideUp flex-col rounded-t-[28px] bg-white px-5 pb-6 pt-4"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line" />
+        <div className="min-h-0 overflow-y-auto">
+          <div className="relative h-40 overflow-hidden rounded-[22px] bg-tertiary">
+            <img alt="" className="h-full w-full object-cover" src={getSuggestionImage(suggestion)} />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
+            <div className="absolute bottom-3 left-3 right-3 text-white">
+              <p className="text-[12px] font-semibold">{suggestion.hostName ?? "Gesellig"} hosts</p>
+              <h2 className="mt-1 text-[22px] font-bold leading-[25px] tracking-[-0.5px]">{suggestion.title}</h2>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="rounded-[16px] bg-tertiary px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">When</p>
+              <p className="mt-1 text-[13px] font-semibold">{suggestion.time.day.slice(0, 3)} {suggestion.time.startTime}</p>
+            </div>
+            <div className="rounded-[16px] bg-tertiary px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">Where</p>
+              <p className="mt-1 truncate text-[13px] font-semibold">{suggestion.neighborhood}</p>
+            </div>
+            <div className="rounded-[16px] bg-tertiary px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">Fit</p>
+              <p className="mt-1 text-[13px] font-semibold text-orange">{suggestion.matchScore}%</p>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-[18px] border border-line bg-white p-4 shadow-card">
+            <p className="text-[13px] font-semibold">Event details</p>
+            <div className="mt-3 space-y-2 text-[13px] leading-5 text-muted">
+              <p><span className="font-semibold text-ink">Location:</span> {suggestion.locationName}</p>
+              <p><span className="font-semibold text-ink">Time:</span> {formatTime(suggestion.time)}</p>
+              <p><span className="font-semibold text-ink">Group:</span> {suggestion.groupSize === "small_group" ? "Small group" : "One-to-one"} · {openSpots} spots left</p>
+              <p><span className="font-semibold text-ink">Setting:</span> {suggestion.isPublicPlace ? "Public place" : "Private setting"}{suggestion.isCommunityHosted ? " · host present" : ""}</p>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-[18px] border border-line bg-white p-4 shadow-card">
+            <div className="flex items-center justify-between">
+              <p className="text-[13px] font-semibold">Participants</p>
+              <span className="text-[12px] font-semibold text-muted">{suggestion.confirmedCount + 1}/{suggestion.capacity}</span>
+            </div>
+            <div className="mt-3 space-y-2">
+              {participantsList.slice(0, Math.min(3, suggestion.confirmedCount + 1)).map((participant) => (
+                <div className="flex items-center gap-3" key={participant.name}>
+                  <ParticipantAvatar participant={participant} className="h-9 w-9 rounded-full" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-semibold">{participant.name}</p>
+                    <p className="text-[11px] text-muted">{participant.name === "You" ? "You will join after accepting" : participant.isFriend ? "Met before" : "New participant"}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {suggestion.matchReasons.length > 0 ? (
+            <div className="mt-4 rounded-[18px] bg-orangeSoft p-4">
+              <p className="text-[13px] font-semibold text-orange">Why this matches</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {suggestion.matchReasons.map((reason) => (
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-ink" key={reason}>{reason}</span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-4 grid grid-cols-[1fr_auto] gap-3">
+          <button
+            className="cta h-11"
+            onClick={() => {
+              onAccept(suggestion);
+              onClose();
+            }}
+            type="button"
+          >
+            Accept plan
+          </button>
+          <button
+            className="grid h-11 w-11 place-items-center rounded-full bg-tertiary text-ink"
+            onClick={() => {
+              onReject(suggestion.id);
+              onClose();
+            }}
+            type="button"
+            aria-label="Reject suggestion"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -946,6 +1209,24 @@ const FIXED_SUGGESTION: ActivitySuggestion = {
   status: "open",
   matchScore: 95,
   matchReasons: ["Matches your craving for sushi", "Fits 18:00-20:00 window", "Public restaurant in Centrum"],
+};
+
+const WILDCARD_SUGGESTION: ActivitySuggestion = {
+  id: "wildcard-local-event",
+  title: "Wildcard: low-pressure local event",
+  interest: "community_events",
+  locationName: "Centrale Bibliotheek Rotterdam",
+  neighborhood: "Centrum",
+  isPublicPlace: true,
+  isCommunityHosted: true,
+  hostName: "Community hosts",
+  groupSize: "small_group",
+  capacity: 8,
+  confirmedCount: 4,
+  time: { day: "Friday", label: "Fri evening", startTime: "18:30", endTime: "20:00" },
+  status: "open",
+  matchScore: 72,
+  matchReasons: ["Not based on your usual interests — suggested to help you meet people outside your normal routine."],
 };
 
 function AiPromptSection({ onAccept, onCreateEvent }: { onAccept: (s: ActivitySuggestion) => void; onCreateEvent: () => void }) {
@@ -1053,8 +1334,20 @@ function SuggestionsScreen({
   onResetRejected,
   suggestions,
 }: SuggestionsScreenProps) {
+  const [selectedSuggestion, setSelectedSuggestion] = useState<ActivitySuggestion | null>(null);
+  const [wildcardHidden, setWildcardHidden] = useState(false);
   const acceptedIds = new Set(acceptedList.map((s) => s.id));
-  const visibleSuggestions = suggestions.filter((suggestion) => !acceptedIds.has(suggestion.id));
+  const visibleSuggestions = [
+    ...suggestions,
+    ...(wildcardHidden || acceptedIds.has(WILDCARD_SUGGESTION.id) ? [] : [WILDCARD_SUGGESTION]),
+  ].filter((suggestion) => !acceptedIds.has(suggestion.id));
+  const rejectSuggestion = (id: string) => {
+    if (id === WILDCARD_SUGGESTION.id) {
+      setWildcardHidden(true);
+      return;
+    }
+    onReject(id);
+  };
 
   return (
     <section className="space-y-6">
@@ -1070,17 +1363,6 @@ function SuggestionsScreen({
         <h2 className="text-[18px] font-semibold tracking-[-0.4px]">Who's around</h2>
         <AroundList blockedContacts={blockedContacts} onMessage={onMessage} />
       </div>
-      {acceptedList.length > 0 ? (
-        <div className="space-y-2">
-          {acceptedList.map((item) => (
-            <div className="rounded-[20px] border border-orange bg-orangeSoft px-4 py-3" key={item.id}>
-              <p className="text-[12px] font-semibold text-orange">Signed up</p>
-              <p className="mt-1 text-[16px] font-semibold">{item.title}</p>
-              <p className="text-[12px] text-muted">{formatTime(item.time)}</p>
-            </div>
-          ))}
-        </div>
-      ) : null}
       <div className="flex items-center justify-between">
         <h2 className="text-[18px] font-semibold tracking-[-0.4px]">Suggested plans</h2>
         <span className="text-[16px] leading-none text-muted">↕</span>
@@ -1091,7 +1373,8 @@ function SuggestionsScreen({
             <SuggestionCard
               key={suggestion.id}
               onAccept={onAccept}
-              onReject={onReject}
+              onOpen={setSelectedSuggestion}
+              onReject={rejectSuggestion}
               suggestion={suggestion}
             />
           ))}
@@ -1106,12 +1389,21 @@ function SuggestionsScreen({
           </button>
         </div>
       )}
+      {selectedSuggestion ? (
+        <SuggestionDetailSheet
+          onAccept={onAccept}
+          onClose={() => setSelectedSuggestion(null)}
+          onReject={rejectSuggestion}
+          suggestion={selectedSuggestion}
+        />
+      ) : null}
     </section>
   );
 }
 
 type AddEventScreenProps = {
   onAdd: (event: ActivitySession) => void;
+  onBack: () => void;
 };
 
 const suggestedInvites = [
@@ -1120,19 +1412,39 @@ const suggestedInvites = [
   { name: "Ruben M.", image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=80", reason: "Nearby" },
 ];
 
-function AddEventScreen({ onAdd }: AddEventScreenProps) {
-  const [entryText, setEntryText] = useState("");
+function AddEventScreen({ onAdd, onBack }: AddEventScreenProps) {
+  const [wizardStep, setWizardStep] = useState(0);
+  const [title, setTitle] = useState("");
+  const [day, setDay] = useState("Thursday");
+  const [startTime, setStartTime] = useState("18:00");
+  const [endTime, setEndTime] = useState("20:00");
   const [locationName, setLocationName] = useState("Public place in Rotterdam");
+  const [neighborhood, setNeighborhood] = useState("Centrum");
   const [interest, setInterest] = useState<Interest>("community_events");
+  const [groupSize, setGroupSize] = useState<ActivitySession["groupSize"]>("small_group");
+  const [capacity, setCapacity] = useState(6);
+  const [isPublicPlace, setIsPublicPlace] = useState(true);
+  const [isCommunityHosted, setIsCommunityHosted] = useState(false);
+  const [hostName, setHostName] = useState("Resident plan");
   const [invited, setInvited] = useState<string[]>([]);
-  const generatedEvent = useMemo(() => parseCalendarInput(entryText), [entryText]);
-  const canAdd = entryText.trim().length > 0 && generatedEvent.hasTime && locationName.trim().length > 0;
 
-  const updateEntryText = (value: string) => {
-    setEntryText(value);
-    if (value.trim()) {
-      setInterest(inferInterestFromText(value));
+  const canContinue = [
+    title.trim().length > 0 && startTime.trim().length > 0 && endTime.trim().length > 0,
+    locationName.trim().length > 0 && neighborhood.trim().length > 0,
+    Boolean(interest) && capacity > 0,
+    true,
+    title.trim().length > 0 && locationName.trim().length > 0,
+  ][wizardStep];
+
+  const setTitleFromExample = (value: string) => {
+    const parsed = parseCalendarInput(value);
+    setTitle(parsed.title);
+    if (parsed.hasTime) {
+      setDay(parsed.day);
+      setStartTime(parsed.startTime);
+      setEndTime(parsed.endTime);
     }
+    setInterest(inferInterestFromText(value));
   };
 
   const toggleInvite = (name: string) => {
@@ -1140,143 +1452,250 @@ function AddEventScreen({ onAdd }: AddEventScreenProps) {
   };
 
   const addEvent = () => {
-    if (!canAdd) return;
+    if (!canContinue) return;
     onAdd({
       id: `resident-event-${Date.now()}`,
-      title: generatedEvent.title,
+      title: title.trim(),
       interest,
       locationName: locationName.trim(),
-      neighborhood: "Rotterdam",
-      isPublicPlace: true,
-      isCommunityHosted: false,
-      hostName: "Resident plan",
-      groupSize: "small_group",
-      capacity: 6,
-      confirmedCount: 1,
+      neighborhood,
+      isPublicPlace,
+      isCommunityHosted,
+      hostName: hostName.trim() || "Resident plan",
+      groupSize,
+      capacity,
+      confirmedCount: Math.min(capacity, Math.max(1, invited.length + 1)),
       time: {
-        day: generatedEvent.day,
-        label: generatedEvent.label,
-        startTime: generatedEvent.startTime,
-        endTime: generatedEvent.endTime,
+        day,
+        label: `${day} ${startTime}`,
+        startTime,
+        endTime,
       },
       status: "open",
     });
-    setEntryText("");
+    setTitle("");
     setLocationName("Public place in Rotterdam");
+    setNeighborhood("Centrum");
     setInvited([]);
+    setWizardStep(0);
   };
+
+  const goBack = () => {
+    if (wizardStep === 0) {
+      onBack();
+      return;
+    }
+    setWizardStep((current) => current - 1);
+  };
+
+  const goNext = () => {
+    if (!canContinue) return;
+    setWizardStep((current) => Math.min(current + 1, 4));
+  };
+
+  const stepLabel = ["Name & time", "Place", "Activity", "Invite people", "Overview"][wizardStep];
 
   return (
     <section className="flex min-h-[650px] flex-col space-y-5">
+      <BackButton onBack={goBack} />
       <div>
-        <div className="top-line mb-5" />
-        <h1 className="title-lg">Add an event</h1>
-        <p className="body-copy mt-2">Create a public plan others can join.</p>
+        <h1 className="text-[28px] font-normal leading-[34px] tracking-[-0.7px]">Add an event</h1>
+        <p className="body-copy mt-2">Step {wizardStep + 1} of 5 · {stepLabel}</p>
       </div>
 
-      <label className="block space-y-2">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Plan</span>
-        <div className="rounded-[20px] border border-line bg-white p-3 shadow-card">
-          <input
-            className="w-full bg-transparent text-[15px] font-semibold tracking-[-0.3px] outline-none placeholder:text-muted"
-            onChange={(event) => updateEntryText(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                addEvent();
-              }
-            }}
-            placeholder="Museum visit Friday 19:00-20:00"
-            value={entryText}
-          />
-        </div>
-      </label>
-
-      <div className="flex gap-2 overflow-x-auto pb-1 text-[11px] font-semibold text-muted">
-        {["Coffee break Tuesday 19:00-20:00", "Basketball training Thursday 17:00-18:00"].map((example) => (
-          <button
-            className="shrink-0 rounded-full border border-line bg-white px-3 py-1.5 shadow-card"
-            key={example}
-            onClick={() => updateEntryText(example)}
-            type="button"
-          >
-            {example}
-          </button>
+      <div className="grid grid-cols-5 gap-1">
+        {[0, 1, 2, 3, 4].map((index) => (
+          <span className={`h-1.5 rounded-full ${index <= wizardStep ? "bg-orange" : "bg-line"}`} key={index} />
         ))}
       </div>
 
-      <label className="block space-y-2">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Public place</span>
-        <input
-          className="input"
-          onChange={(event) => setLocationName(event.target.value)}
-          placeholder="Public place in Rotterdam"
-          value={locationName}
-        />
-      </label>
+      {wizardStep === 0 ? (
+        <div className="space-y-4">
+          <label className="block space-y-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Event name</span>
+            <input className="input" onChange={(event) => setTitle(event.target.value)} placeholder="Museum visit" value={title} />
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            <label className="block space-y-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Day</span>
+              <select className="input px-2" onChange={(event) => setDay(event.target.value)} value={day}>
+                {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((item) => (
+                  <option key={item}>{item}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block space-y-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Start</span>
+              <input className="input px-2" onChange={(event) => setStartTime(event.target.value)} type="time" value={startTime} />
+            </label>
+            <label className="block space-y-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">End</span>
+              <input className="input px-2" onChange={(event) => setEndTime(event.target.value)} type="time" value={endTime} />
+            </label>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 text-[11px] font-semibold text-muted">
+            {["Coffee break Tuesday 19:00-20:00", "Basketball training Thursday 17:00-18:00"].map((example) => (
+              <button
+                className="shrink-0 rounded-full border border-line bg-white px-3 py-1.5 shadow-card"
+                key={example}
+                onClick={() => setTitleFromExample(example)}
+                type="button"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
-      <div className="space-y-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Activity type</p>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {interests.map((item) => (
+      {wizardStep === 1 ? (
+        <div className="space-y-4">
+          <label className="block space-y-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Location</span>
+            <input className="input" onChange={(event) => setLocationName(event.target.value)} placeholder="Public place in Rotterdam" value={locationName} />
+          </label>
+          <label className="block space-y-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Neighborhood</span>
+            <select className="input" onChange={(event) => setNeighborhood(event.target.value)} value={neighborhood}>
+              {neighborhoods.map((item) => (
+                <option key={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+          <button className="soft-card w-full text-left" onClick={() => setIsPublicPlace(!isPublicPlace)} type="button">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[14px] font-semibold">Public place</p>
+                <p className="text-[12px] text-muted">Shown as the setting in event details.</p>
+              </div>
+              <span className={`grid h-8 w-8 place-items-center rounded-full ${isPublicPlace ? "bg-orange text-white" : "bg-line"}`}>
+                {isPublicPlace ? <Check size={16} /> : null}
+              </span>
+            </div>
+          </button>
+        </div>
+      ) : null}
+
+      {wizardStep === 2 ? (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Activity type</p>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {interests.map((item) => (
+                <button
+                  className={`pill shrink-0 ${interest === item.id ? "pill-active" : ""}`}
+                  key={item.id}
+                  onClick={() => setInterest(item.id)}
+                  type="button"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
             <button
-              className={`pill shrink-0 ${interest === item.id ? "pill-active" : ""}`}
-              key={item.id}
-              onClick={() => setInterest(item.id)}
+              className={`rounded-[18px] border px-4 py-3 text-left shadow-card ${groupSize === "small_group" ? "border-orange bg-orangeSoft" : "border-line bg-white"}`}
+              onClick={() => setGroupSize("small_group")}
               type="button"
             >
-              {item.label}
+              <p className="text-[14px] font-semibold">Small group</p>
+              <p className="text-[12px] text-muted">2-6 people</p>
+            </button>
+            <button
+              className={`rounded-[18px] border px-4 py-3 text-left shadow-card ${groupSize === "one_to_one" ? "border-orange bg-orangeSoft" : "border-line bg-white"}`}
+              onClick={() => {
+                setGroupSize("one_to_one");
+                setCapacity(2);
+              }}
+              type="button"
+            >
+              <p className="text-[14px] font-semibold">One-to-one</p>
+              <p className="text-[12px] text-muted">2 people</p>
+            </button>
+          </div>
+          <label className="block space-y-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Capacity</span>
+            <input
+              className="input"
+              min={groupSize === "one_to_one" ? 2 : 3}
+              max={12}
+              onChange={(event) => setCapacity(Number(event.target.value))}
+              type="number"
+              value={capacity}
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Host label</span>
+            <input className="input" onChange={(event) => setHostName(event.target.value)} value={hostName} />
+          </label>
+          <button className="soft-card w-full text-left" onClick={() => setIsCommunityHosted(!isCommunityHosted)} type="button">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[14px] font-semibold">Host present</p>
+                <p className="text-[12px] text-muted">Adds host-present signal to event details.</p>
+              </div>
+              <span className={`grid h-8 w-8 place-items-center rounded-full ${isCommunityHosted ? "bg-orange text-white" : "bg-line"}`}>
+                {isCommunityHosted ? <Check size={16} /> : null}
+              </span>
+            </div>
+          </button>
+        </div>
+      ) : null}
+
+      {wizardStep === 3 ? (
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Suggested invites</p>
+          {suggestedInvites.map((p) => (
+            <button
+              className={`flex w-full items-center gap-3 rounded-[18px] border bg-white px-3 py-2.5 shadow-card transition ${invited.includes(p.name) ? "border-orange" : "border-line"}`}
+              key={p.name}
+              onClick={() => toggleInvite(p.name)}
+              type="button"
+            >
+              <img src={p.image} alt="" className="h-9 w-9 rounded-full object-cover" />
+              <div className="min-w-0 flex-1 text-left">
+                <p className="text-[14px] font-semibold">{p.name}</p>
+                <p className="text-[11px] text-muted">{p.reason}</p>
+              </div>
+              {invited.includes(p.name) ? (
+                <Check className="shrink-0 text-orange" size={16} />
+              ) : (
+                <span className="shrink-0 text-[11px] font-semibold text-muted">Invite</span>
+              )}
             </button>
           ))}
+          <button className="cta-secondary mt-2 w-full" onClick={goNext} type="button">Skip invites</button>
         </div>
-      </div>
+      ) : null}
 
-      <div className="rounded-[18px] border border-line bg-white px-3 py-3 shadow-card">
-        <div className="flex items-center gap-3">
-          <CalendarDays className="shrink-0 text-orange" size={17} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[14px] font-semibold">{entryText.trim() ? generatedEvent.title : "Generated calendar event"}</p>
-            <p className="mt-0.5 text-[12px] text-muted">
-              {generatedEvent.hasTime
-                ? `${generatedEvent.day}, ${generatedEvent.startTime}-${generatedEvent.endTime}`
-                : "Waiting for a range like 19:00-20:00"}
-            </p>
+      {wizardStep === 4 ? (
+        <div className="space-y-3">
+          <div className="rounded-[18px] border border-line bg-white p-4 shadow-card">
+            <p className="text-[16px] font-semibold">{title || "Untitled event"}</p>
+            <p className="mt-1 text-[12px] text-muted">{day}, {startTime}-{endTime} · {locationName}</p>
           </div>
-          {generatedEvent.hasTime ? <Check className="shrink-0 text-green" size={17} /> : null}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Suggested invites</p>
-        {suggestedInvites.map((p) => (
-          <button
-            className={`flex w-full items-center gap-3 rounded-[18px] border bg-white px-3 py-2.5 shadow-card transition ${invited.includes(p.name) ? "border-orange" : "border-line"}`}
-            key={p.name}
-            onClick={() => toggleInvite(p.name)}
-            type="button"
-          >
-            <img src={p.image} alt="" className="h-9 w-9 rounded-full object-cover" />
-            <div className="min-w-0 flex-1 text-left">
-              <p className="text-[14px] font-semibold">{p.name}</p>
-              <p className="text-[11px] text-muted">{p.reason}</p>
+          <div className="rounded-[18px] border border-line bg-white p-4 shadow-card">
+            <p className="text-[13px] font-semibold">Event details</p>
+            <div className="mt-3 space-y-2 text-[13px] leading-5 text-muted">
+              <p><span className="font-semibold text-ink">Location:</span> {locationName}</p>
+              <p><span className="font-semibold text-ink">Time:</span> {day}, {startTime}-{endTime}</p>
+              <p><span className="font-semibold text-ink">Group:</span> {groupSize === "small_group" ? "Small group" : "One-to-one"} · {capacity} capacity</p>
+              <p><span className="font-semibold text-ink">Setting:</span> {isPublicPlace ? "Public place" : "Private setting"}{isCommunityHosted ? " · host present" : ""}</p>
+              <p><span className="font-semibold text-ink">Invited:</span> {invited.length ? invited.join(", ") : "No one yet"}</p>
             </div>
-            {invited.includes(p.name) ? (
-              <Check className="shrink-0 text-orange" size={16} />
-            ) : (
-              <span className="shrink-0 text-[11px] font-semibold text-muted">Invite</span>
-            )}
-          </button>
-        ))}
-      </div>
+          </div>
+        </div>
+      ) : null}
 
       <button
         className="cta mt-auto w-full disabled:cursor-not-allowed disabled:opacity-40"
-        disabled={!canAdd}
-        onClick={addEvent}
+        disabled={!canContinue}
+        onClick={wizardStep === 4 ? addEvent : goNext}
         type="button"
       >
-        Add event
-        <Plus size={17} />
+        {wizardStep === 4 ? "Add event" : "Continue"}
+        {wizardStep === 4 ? <Plus size={17} /> : <ArrowRight size={17} />}
       </button>
     </section>
   );
@@ -1289,6 +1708,99 @@ type ConfirmedPopupProps = {
   onChat: () => void;
 };
 
+type Participant = {
+  name: string;
+  image: string;
+  isFriend: boolean;
+};
+
+const participantsList: Participant[] = [
+  { name: "Daan V.", image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80", isFriend: true },
+  { name: "Sophie K.", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80", isFriend: false },
+  { name: "You", image: "", isFriend: true },
+];
+
+const repeatCoffeeInvitation: ActivitySuggestion = {
+  id: "repeat-coffee-lauren",
+  title: "Coffee again at Hopper",
+  interest: "coffee",
+  locationName: "Hopper Coffee Rotterdam",
+  neighborhood: "Centrum",
+  isPublicPlace: true,
+  isCommunityHosted: false,
+  hostName: "Lauren Brand",
+  groupSize: "small_group",
+  capacity: 4,
+  confirmedCount: 1,
+  time: { day: "Thursday", label: "Thu afternoon", startTime: "16:00", endTime: "17:00" },
+  status: "open",
+  matchScore: 96,
+  matchReasons: ["You met last week", "Coffee worked well before", "Public cafe in Centrum"],
+};
+
+function ParticipantAvatar({ participant, className }: { participant: Participant; className: string }) {
+  if (participant.image) {
+    return <img src={participant.image} alt="" className={`${className} object-cover`} />;
+  }
+
+  return (
+    <div className={`${className} grid place-items-center bg-orangeSoft text-orange`}>
+      <UserRound size={18} />
+    </div>
+  );
+}
+
+function RepeatInvitationPopup({
+  onAccept,
+  onChat,
+  onDismiss,
+}: {
+  onAccept: () => void;
+  onChat: () => void;
+  onDismiss: () => void;
+}) {
+  const inviter = peopleCards.find((person) => person.name === "Lauren Brand") ?? peopleCards[1];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onDismiss}>
+      <div className="absolute inset-0 bg-black/35" />
+      <div
+        className="relative mx-auto w-full max-w-[430px] animate-slideUp rounded-t-[28px] bg-white px-6 pb-8 pt-4"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-line" />
+        <div className="flex items-start gap-4">
+          <img alt="" className="h-16 w-16 shrink-0 rounded-[20px] object-cover shadow-card" src={inviter.image} />
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] font-semibold text-orange">Invitation from last week</p>
+            <h2 className="mt-1 text-[22px] font-bold leading-[26px] tracking-[-0.5px]">Lauren wants to drink coffee again</h2>
+            <p className="mt-2 text-[13px] leading-5 text-muted">
+              You met at museum coffee last week. She invited you to {repeatCoffeeInvitation.locationName} on Thursday.
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 rounded-[18px] bg-tertiary px-4 py-3">
+          <p className="text-[14px] font-semibold">{repeatCoffeeInvitation.title}</p>
+          <p className="mt-1 text-[12px] text-muted">
+            {formatTime(repeatCoffeeInvitation.time)} · {repeatCoffeeInvitation.neighborhood}
+          </p>
+        </div>
+        <div className="mt-6 grid grid-cols-[1fr_auto_auto] gap-3">
+          <button className="cta h-11" onClick={onAccept} type="button">
+            Accept
+          </button>
+          <button className="cta-secondary h-11 px-4" onClick={onChat} type="button">
+            Message
+          </button>
+          <button className="cta-secondary h-11 px-4" onClick={onDismiss} type="button">
+            Later
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ConfirmedPopup({ confirmed, onDismiss, onViewParticipants, onChat }: ConfirmedPopupProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onDismiss}>
@@ -1300,12 +1812,11 @@ function ConfirmedPopup({ confirmed, onDismiss, onViewParticipants, onChat }: Co
         <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-line" />
         <div className="flex flex-col items-center text-center">
           <div className="mb-5 flex -space-x-3">
-            <div className="h-[100px] w-[80px] overflow-hidden rounded-[16px] border-2 border-white shadow-card">
-              <img src={brandAssets.heroImage} alt="" className="h-full w-full object-cover" />
-            </div>
-            <div className="h-[100px] w-[80px] overflow-hidden rounded-[16px] border-2 border-white shadow-card">
-              <img src={brandAssets.cityCardImage} alt="" className="h-full w-full object-cover" />
-            </div>
+            {participantsList.slice(0, 3).map((participant) => (
+              <div className="h-[100px] w-[80px] overflow-hidden rounded-[16px] border-2 border-white shadow-card" key={participant.name}>
+                <ParticipantAvatar participant={participant} className="h-full w-full" />
+              </div>
+            ))}
           </div>
           <p className="text-[18px] font-semibold tracking-[-0.3px]">Signed up for</p>
           <p className="mt-0.5 text-[22px] font-bold tracking-[-0.5px]">{confirmed.title}</p>
@@ -1333,12 +1844,6 @@ function ConfirmedPopup({ confirmed, onDismiss, onViewParticipants, onChat }: Co
   );
 }
 
-const participantsList = [
-  { name: "Daan V.", image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80", isFriend: true },
-  { name: "Sophie K.", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80", isFriend: false },
-  { name: "You", image: "", isFriend: true },
-];
-
 function ParticipantsScreen({ activity, onBack, onChat }: { activity: ActivitySuggestion; onBack: () => void; onChat: (person: ChatPerson) => void }) {
   return (
     <section className="flex min-h-[650px] flex-col space-y-5">
@@ -1353,13 +1858,7 @@ function ParticipantsScreen({ activity, onBack, onChat }: { activity: ActivitySu
       <div className="space-y-3">
         {participantsList.map((p) => (
           <div className="flex items-center gap-3 rounded-[18px] border border-line bg-white px-4 py-3 shadow-card" key={p.name}>
-            {p.image ? (
-              <img src={p.image} alt="" className="h-10 w-10 rounded-full object-cover" />
-            ) : (
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-orangeSoft text-orange">
-                <UserRound size={18} />
-              </div>
-            )}
+            <ParticipantAvatar participant={p} className="h-10 w-10 rounded-full" />
             <div className="min-w-0 flex-1">
               <p className="text-[14px] font-semibold">{p.name}</p>
               <p className="text-[12px] text-muted">{p.name === "You" ? "That's you" : p.isFriend ? "Connected" : "New face"}</p>
@@ -1390,16 +1889,18 @@ function ParticipantsScreen({ activity, onBack, onChat }: { activity: ActivitySu
 }
 
 type FeedbackScreenProps = {
+  onBack: () => void;
   onSubmit: (feedback: Feedback) => void;
   suggestionId: string;
 };
 
-function FeedbackScreen({ onSubmit, suggestionId }: FeedbackScreenProps) {
+function FeedbackScreen({ onBack, onSubmit, suggestionId }: FeedbackScreenProps) {
   const [rating, setRating] = useState<1 | 2 | 3 | 4 | 5>(4);
   const [wantsRepeat, setWantsRepeat] = useState(true);
 
   return (
     <section className="space-y-6">
+      <BackButton onBack={onBack} />
       <div>
         <div className="top-line mb-5" />
         <h1 className="title-lg">How did it feel?</h1>
@@ -1596,9 +2097,8 @@ function CalendarScreen({
 
   return (
     <section className="space-y-5">
-      <div>
-        <div className="top-line mb-5" />
-        <h1 className="title-lg">Your calendar</h1>
+      <div className="pt-3">
+        <h1 className="text-[28px] font-normal leading-[34px] tracking-[-0.7px]">Your calendar</h1>
         <p className="body-copy mt-2">Free windows from onboarding and meet-ups you join.</p>
       </div>
       <div className="space-y-2">
@@ -1674,57 +2174,106 @@ function CalendarScreen({
 function FriendsScreen({
   blockedContacts,
   feedback,
+  friendInvites,
   onMessage,
   onPlan,
+  onAcceptInvite,
 }: {
   blockedContacts: string[];
   feedback: Feedback[];
+  friendInvites: string[];
   onMessage: (person: ChatPerson) => void;
   onPlan: () => void;
+  onAcceptInvite: (name: string) => void;
 }) {
+  const [filter, setFilter] = useState<"invites" | "friends" | "suggested">("invites");
+  const [search, setSearch] = useState("");
   const hasRepeat = feedback.some((item) => item.wantsRepeat);
-  const friends = hasRepeat
-    ? ["Ann James from the Kralingse Plas walk", "Lauren Brand from Depot Boijmans cafe"]
-    : ["Ann James from nearby walks", "Lauren Brand from museum coffee"];
-  const visibleFriends = friends
-    .map((friend) => ({
-      label: friend,
-      person: peopleCards.find((person) => friend.startsWith(person.name)) ?? peopleCards[0],
-    }))
-    .filter((friend) => !blockedContacts.includes(friend.person.name));
+  const baseRows = [
+    {
+      kind: "invites" as const,
+      label: "Ann James from nearby walks",
+      helper: "Suggested through shared activities",
+      person: peopleCards.find((person) => person.name === "Ann James") ?? peopleCards[0],
+    },
+    {
+      kind: "friends" as const,
+      label: hasRepeat ? "Lauren Brand from Depot Boijmans cafe" : "Lauren Brand from museum coffee",
+      helper: hasRepeat ? "Meet-again preference saved" : "Current connection",
+      person: peopleCards.find((person) => person.name === "Lauren Brand") ?? peopleCards[1],
+    },
+    {
+      kind: "suggested" as const,
+      label: "Daan V. from evening walks",
+      helper: "Suggested invite",
+      person: { name: "Daan V.", image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80", note: "Evening walks", daysLeft: "" },
+    },
+    {
+      kind: "suggested" as const,
+      label: "Sophie K. from museum coffee",
+      helper: "Suggested invite",
+      person: { name: "Sophie K.", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80", note: "Museums", daysLeft: "" },
+    },
+  ];
+  const rows = baseRows
+    .filter((row) => row.kind === filter)
+    .filter((row) => !blockedContacts.includes(row.person.name))
+    .filter((row) => row.label.toLowerCase().includes(search.trim().toLowerCase()) || row.person.name.toLowerCase().includes(search.trim().toLowerCase()))
+    .filter((row) => row.kind !== "invites" || friendInvites.includes(row.person.name));
+  const counts = {
+    invites: baseRows.filter((row) => row.kind === "invites" && friendInvites.includes(row.person.name)).length,
+    friends: baseRows.filter((row) => row.kind === "friends").length,
+    suggested: baseRows.filter((row) => row.kind === "suggested").length,
+  };
 
   return (
     <section className="space-y-5">
-      <div>
-        <div className="top-line mb-5" />
-        <h1 className="title-lg">People you may meet again</h1>
+      <div className="pt-3">
+        <h1 className="text-[28px] font-normal leading-[34px] tracking-[-0.7px]">People you may<br />meet again</h1>
         <p className="body-copy mt-2">Longer-term connections build from repeat activities, not profile browsing.</p>
       </div>
-      {!hasRepeat ? (
-        <div className="soft-card border-orange bg-orangeSoft">
-          <p className="text-[14px] font-semibold">No repeat contacts yet</p>
-          <p className="text-[12px] text-muted">After feedback, people you choose to meet again appear here.</p>
+      <input
+        className="input"
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder="Search names"
+        value={search}
+      />
+      <div className="grid grid-cols-3 gap-1 rounded-full border border-line bg-white p-1 shadow-card">
+        {(["invites", "friends", "suggested"] as const).map((item) => (
+          <button
+            className={`rounded-full px-2 py-2 text-[11px] font-semibold capitalize ${filter === item ? "bg-ink text-white" : "text-muted"}`}
+            key={item}
+            onClick={() => setFilter(item)}
+            type="button"
+          >
+            {item} {counts[item] > 0 ? counts[item] : ""}
+          </button>
+        ))}
+      </div>
+      {rows.length === 0 ? (
+        <div className="rounded-[18px] border border-line bg-white px-4 py-3 text-[13px] font-semibold text-muted shadow-card">
+          No matches
         </div>
       ) : null}
-      {visibleFriends.length > 0 ? null : (
-        <div className="rounded-[18px] border border-line bg-white px-4 py-3 text-[13px] font-semibold text-muted shadow-card">
-          No visible contacts
-        </div>
-      )}
-      {visibleFriends.map((friend, index) => (
-        <div className="soft-card flex items-center justify-between" key={friend.label}>
+      {rows.map((friend) => (
+        <div className="soft-card flex items-center justify-between gap-3" key={friend.label}>
           <div className="flex items-center gap-3">
             <img alt="" className="h-14 w-14 rounded-[18px] object-cover" src={friend.person.image} />
-            <div>
+            <div className="min-w-0">
               <p className="text-[15px] font-semibold">{friend.label}</p>
-              <p className="text-[12px] text-muted">{index === 0 && hasRepeat ? "Meet-again preference saved" : "Suggested through shared activities"}</p>
+              <p className="text-[12px] text-muted">{friend.helper}</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex shrink-0 gap-2">
+            {friend.kind === "invites" ? (
+              <button className="rounded-full bg-ink px-3 py-1.5 text-[11px] font-semibold text-white" onClick={() => onAcceptInvite(friend.person.name)} type="button">
+                Accept
+              </button>
+            ) : null}
             <button className="cta-secondary h-9 px-3" onClick={() => onMessage(friend.person)} type="button">
               Message
             </button>
-            <button className="cta-secondary h-9 px-3" onClick={onPlan} type="button">Plan</button>
+            {friend.kind !== "invites" ? <button className="cta-secondary h-9 px-3" onClick={onPlan} type="button">Plan</button> : null}
           </div>
         </div>
       ))}
@@ -1752,9 +2301,8 @@ function SettingsScreen({ blockedContacts, profile, setBlockedContacts, setProfi
 
   return (
     <section className="space-y-5 pb-4">
-      <div>
-        <div className="top-line mb-5" />
-        <h1 className="title-lg">Settings</h1>
+      <div className="pt-3">
+        <h1 className="text-[28px] font-normal leading-[34px] tracking-[-0.7px]">Settings</h1>
         <p className="body-copy mt-2">Manage your account, privacy, and safety preferences.</p>
       </div>
 
@@ -1880,7 +2428,9 @@ function SettingsScreen({ blockedContacts, profile, setBlockedContacts, setProfi
 }
 
 type BottomNavProps = {
+  acceptedCount: number;
   active: Step;
+  friendInviteCount: number;
   onAddEvent: () => void;
   onFriends: () => void;
   onHome: () => void;
@@ -1888,7 +2438,7 @@ type BottomNavProps = {
   onSettings: () => void;
 };
 
-function BottomNav({ active, onAddEvent, onCalendar, onFriends, onHome, onSettings }: BottomNavProps) {
+function BottomNav({ acceptedCount, active, friendInviteCount, onAddEvent, onCalendar, onFriends, onHome, onSettings }: BottomNavProps) {
   const itemClass = (target: Step) =>
     `grid justify-items-center gap-1 rounded-2xl px-2 py-1.5 transition ${
       active === target || (target === "groups" && active === "home") ? "bg-orangeSoft text-orange" : ""
@@ -1901,7 +2451,14 @@ function BottomNav({ active, onAddEvent, onCalendar, onFriends, onHome, onSettin
         Home
       </button>
       <button className={itemClass("calendar")} onClick={onCalendar} type="button">
-        <CalendarDays size={16} />
+        <span className="relative">
+          <CalendarDays size={16} />
+          {acceptedCount > 0 ? (
+            <span className="absolute -right-2.5 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-orange px-1 text-[9px] font-bold leading-none text-white">
+              {acceptedCount}
+            </span>
+          ) : null}
+        </span>
         Calendar
       </button>
       <button className={itemClass("addEvent")} onClick={onAddEvent} type="button" aria-label="Add event">
@@ -1911,7 +2468,14 @@ function BottomNav({ active, onAddEvent, onCalendar, onFriends, onHome, onSettin
         Add
       </button>
       <button className={itemClass("friends")} onClick={onFriends} type="button">
-        <UserRound size={16} />
+        <span className="relative">
+          <UserRound size={16} />
+          {friendInviteCount > 0 ? (
+            <span className="absolute -right-2.5 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-orange px-1 text-[9px] font-bold leading-none text-white">
+              {friendInviteCount}
+            </span>
+          ) : null}
+        </span>
         Friends
       </button>
       <button className={itemClass("settings")} onClick={onSettings} type="button">
@@ -1924,7 +2488,8 @@ function BottomNav({ active, onAddEvent, onCalendar, onFriends, onHome, onSettin
 
 export default function App() {
   const [step, setStep] = useState<Step>("welcome");
-  const [mode, setMode] = useState<ViewMode>("mobile");
+  const [mode, setMode] = useState<ViewMode>("business");
+  const [returnStep, setReturnStep] = useState<Step>("groups");
   const [profile, setProfile] = useState<ResidentProfile>(defaultProfile);
   const [acceptedList, setAcceptedList] = useState<ActivitySuggestion[]>([]);
   const [lastAccepted, setLastAccepted] = useState<ActivitySuggestion | null>(null);
@@ -1934,14 +2499,29 @@ export default function App() {
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [chatPerson, setChatPerson] = useState<ChatPerson | null>(null);
   const [showConfirmedPopup, setShowConfirmedPopup] = useState(false);
+  const [showRepeatInvitation, setShowRepeatInvitation] = useState(false);
+  const [repeatInvitationShown, setRepeatInvitationShown] = useState(false);
   const [userEvents, setUserEvents] = useState<ActivitySession[]>([]);
   const [blockedContacts, setBlockedContacts] = useState<string[]>([]);
+  const [friendInvites, setFriendInvites] = useState<string[]>(["Ann James"]);
 
   const allSessions = useMemo(() => [...userEvents, ...sessions], [userEvents]);
   const suggestions = useMemo(
     () => rankSuggestions(profile, allSessions, rejectedIds, blockedIds, feedback),
     [allSessions, blockedIds, feedback, profile, rejectedIds],
   );
+
+  useEffect(() => {
+    const onHomepage = mode === "mobile" && (step === "groups" || step === "home");
+    if (!onHomepage || repeatInvitationShown) return;
+
+    const timer = window.setTimeout(() => {
+      setShowRepeatInvitation(true);
+      setRepeatInvitationShown(true);
+    }, 20000);
+
+    return () => window.clearTimeout(timer);
+  }, [mode, repeatInvitationShown, step]);
 
   const goHome = () => {
     setMode("mobile");
@@ -1957,6 +2537,7 @@ export default function App() {
   };
   const goAddEvent = () => {
     setMode("mobile");
+    setReturnStep(isTabStep(step) || step === "calendar" ? step : "groups");
     setStep("addEvent");
   };
   const goSettings = () => {
@@ -1998,6 +2579,7 @@ export default function App() {
       return current.some((item) => item.label === slot.label) ? current : [...current, slot];
     }, profile.availability);
     setProfile({ ...profile, availability: merged });
+    setReturnStep("calendarConnect");
     setStep("manualAvailability");
   };
 
@@ -2032,9 +2614,46 @@ export default function App() {
     if (next) acceptSuggestion(next);
   };
 
+  const acceptFriendInvite = (name: string) => {
+    setFriendInvites((current) => current.filter((item) => item !== name));
+  };
+
   const submitFeedback = (nextFeedback: Feedback) => {
     setFeedback((current) => [...current.filter((item) => item.suggestionId !== nextFeedback.suggestionId), nextFeedback]);
     setStep("feedbackSuccess");
+  };
+
+  const openFeedback = () => {
+    setReturnStep("calendar");
+    setStep(acceptedList.length > 0 ? "feedback" : "groups");
+  };
+
+  const goBackToReturnStep = () => {
+    setStep(returnStep);
+  };
+
+  const goBackInOnboarding = () => {
+    if (step === "profile") setStep("welcome");
+    if (step === "interests") setStep("profile");
+    if (step === "comfort") setStep("interests");
+    if (step === "calendarConnect") setStep("comfort");
+    if (step === "manualAvailability") goBackToReturnStep();
+    if (step === "habits") setStep("manualAvailability");
+  };
+
+  const acceptRepeatInvitation = () => {
+    setShowRepeatInvitation(false);
+    acceptSuggestion(repeatCoffeeInvitation);
+  };
+
+  const dismissRepeatInvitation = () => {
+    setShowRepeatInvitation(false);
+    setRepeatInvitationShown(true);
+  };
+
+  const chatWithRepeatInviter = () => {
+    setShowRepeatInvitation(false);
+    openChat(peopleCards.find((person) => person.name === "Lauren Brand") ?? peopleCards[1]);
   };
 
   const renderScreen = () => {
@@ -2059,7 +2678,10 @@ export default function App() {
         <CalendarConnectScreen
           calendarConnected={calendarConnected}
           onConnect={importCalendarSlots}
-          onManual={() => setStep("manualAvailability")}
+          onManual={() => {
+            setReturnStep("calendarConnect");
+            setStep("manualAvailability");
+          }}
         />
       );
     }
@@ -2106,9 +2728,12 @@ export default function App() {
           calendarConnected={calendarConnected}
           feedback={feedback}
           onCancelAccepted={cancelAccepted}
-          onFeedback={() => (acceptedList.length > 0 ? setStep("feedback") : setStep("groups"))}
+          onFeedback={openFeedback}
           onConnectPage={() => setStep("calendarConnect")}
-          onManual={() => setStep("manualAvailability")}
+          onManual={() => {
+            setReturnStep("calendar");
+            setStep("manualAvailability");
+          }}
           onOpenAccepted={(s) => {
             setLastAccepted(s);
             setShowConfirmedPopup(true);
@@ -2134,11 +2759,20 @@ export default function App() {
     }
 
     if (step === "friends") {
-      return <FriendsScreen blockedContacts={blockedContacts} feedback={feedback} onMessage={openChat} onPlan={planWithFriend} />;
+      return (
+        <FriendsScreen
+          blockedContacts={blockedContacts}
+          feedback={feedback}
+          friendInvites={friendInvites}
+          onAcceptInvite={acceptFriendInvite}
+          onMessage={openChat}
+          onPlan={planWithFriend}
+        />
+      );
     }
 
     if (step === "addEvent") {
-      return <AddEventScreen onAdd={addUserEvent} />;
+      return <AddEventScreen onAdd={addUserEvent} onBack={goBackToReturnStep} />;
     }
 
     if (step === "settings") {
@@ -2184,7 +2818,7 @@ export default function App() {
     }
 
     if (step === "feedback" && lastAccepted) {
-      return <FeedbackScreen onSubmit={submitFeedback} suggestionId={lastAccepted.id} />;
+      return <FeedbackScreen onBack={goBackToReturnStep} onSubmit={submitFeedback} suggestionId={lastAccepted.id} />;
     }
 
     return null;
@@ -2192,20 +2826,23 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <div className={mode === "dashboard" ? "dashboard-grid" : "prototype-grid"}>
+      <div className={mode === "mobile" ? "prototype-grid" : "dashboard-grid"}>
         <ViewToggle mode={mode} setMode={setMode} />
-        {mode === "mobile" ? (
+        {mode === "business" ? (
+          <BusinessPlanView />
+        ) : mode === "mobile" ? (
           <div className="phone-frame relative">
             <StatusBar />
             <div className="screen-pad">
-              {isOnboarding(step) ? <OnboardingHeader /> : null}
-              {!isOnboarding(step) && step !== "welcome" && step !== "groups" && step !== "home" ? <AppHeader /> : null}
-              {isOnboarding(step) ? <Progress step={step} /> : null}
+              {isOnboarding(step) && step !== "welcome" ? <OnboardingHeader onBack={goBackInOnboarding} /> : null}
+              {isOnboarding(step) && step !== "welcome" ? <Progress step={step} /> : null}
               {renderScreen()}
             </div>
             {isTabStep(step) ? (
               <BottomNav
+                acceptedCount={acceptedList.length}
                 active={step}
+                friendInviteCount={friendInvites.length}
                 onAddEvent={goAddEvent}
                 onCalendar={goCalendar}
                 onFriends={goFriends}
@@ -2225,6 +2862,13 @@ export default function App() {
                   setShowConfirmedPopup(false);
                   openChat({ name: lastAccepted.hostName ?? "Group", image: "", note: "Group chat", daysLeft: "" });
                 }}
+              />
+            ) : null}
+            {showRepeatInvitation && !showConfirmedPopup ? (
+              <RepeatInvitationPopup
+                onAccept={acceptRepeatInvitation}
+                onChat={chatWithRepeatInviter}
+                onDismiss={dismissRepeatInvitation}
               />
             ) : null}
           </div>
