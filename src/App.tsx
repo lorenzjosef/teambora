@@ -1091,6 +1091,7 @@ function SuggestionDetailSheet({
   suggestion: ActivitySuggestion;
 }) {
   const openSpots = suggestion.capacity - suggestion.confirmedCount;
+  const participants = getParticipantsForActivity(suggestion);
 
   return (
     <div className="absolute inset-0 z-50 flex items-end justify-center" onClick={onClose}>
@@ -1141,7 +1142,7 @@ function SuggestionDetailSheet({
               <span className="text-[12px] font-semibold text-muted">{suggestion.confirmedCount + 1}/{suggestion.capacity}</span>
             </div>
             <div className="mt-3 space-y-2">
-              {participantsList.slice(0, Math.min(3, suggestion.confirmedCount + 1)).map((participant) => (
+              {participants.map((participant) => (
                 <div className="flex items-center gap-3" key={participant.name}>
                   <ParticipantAvatar participant={participant} className="h-9 w-9 rounded-full" />
                   <div className="min-w-0 flex-1">
@@ -1864,8 +1865,19 @@ type Participant = {
 const participantsList: Participant[] = [
   { name: "Daan V.", image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80", isFriend: true },
   { name: "Sophie K.", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80", isFriend: false },
-  { name: "You", image: "", isFriend: true },
+  { name: "Nora van Dijk", image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80", isFriend: false },
+  { name: "Youssef El Amrani", image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&q=80", isFriend: false },
+  { name: "Mila de Boer", image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&q=80", isFriend: false },
+  { name: "Jasper Visser", image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=80", isFriend: false },
+  { name: "Priya Sharma", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80", isFriend: false },
+  { name: "Samira Bakker", image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&q=80", isFriend: false },
+  { name: "Thomas Meijer", image: "https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=200&q=80", isFriend: false },
 ];
+
+const getParticipantsForActivity = (activity: ActivitySuggestion) => {
+  const total = Math.min(activity.capacity, activity.confirmedCount + 1);
+  return [...participantsList.slice(0, Math.max(total - 1, 0)), { name: "You", image: "", isFriend: true }].slice(0, total);
+};
 
 const repeatCoffeeInvitation: ActivitySuggestion = {
   id: "repeat-coffee-lauren",
@@ -1949,6 +1961,8 @@ function RepeatInvitationPopup({
 }
 
 function ConfirmedPopup({ confirmed, onDismiss, onViewParticipants, onChat }: ConfirmedPopupProps) {
+  const participants = getParticipantsForActivity(confirmed);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onDismiss}>
       <div className="absolute inset-0 bg-black/40" />
@@ -1959,7 +1973,7 @@ function ConfirmedPopup({ confirmed, onDismiss, onViewParticipants, onChat }: Co
         <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-line" />
         <div className="flex flex-col items-center text-center">
           <div className="mb-5 flex -space-x-3">
-            {participantsList.slice(0, 3).map((participant) => (
+            {participants.slice(0, 4).map((participant) => (
               <div className="h-[100px] w-[80px] overflow-hidden rounded-[16px] border-2 border-white shadow-card" key={participant.name}>
                 <ParticipantAvatar participant={participant} className="h-full w-full" />
               </div>
@@ -1992,6 +2006,8 @@ function ConfirmedPopup({ confirmed, onDismiss, onViewParticipants, onChat }: Co
 }
 
 function ParticipantsScreen({ activity, onBack, onChat }: { activity: ActivitySuggestion; onBack: () => void; onChat: (person: ChatPerson) => void }) {
+  const participants = getParticipantsForActivity(activity);
+
   return (
     <section className="flex min-h-[650px] flex-col space-y-5">
       <div className="flex items-center gap-3">
@@ -2003,7 +2019,7 @@ function ParticipantsScreen({ activity, onBack, onChat }: { activity: ActivitySu
         <Users className="text-orange" size={20} />
       </div>
       <div className="space-y-3">
-        {participantsList.map((p) => (
+        {participants.map((p) => (
           <div className="flex items-center gap-3 rounded-[18px] border border-line bg-white px-4 py-3 shadow-card" key={p.name}>
             <ParticipantAvatar participant={p} className="h-10 w-10 rounded-full" />
             <div className="min-w-0 flex-1">
