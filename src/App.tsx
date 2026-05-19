@@ -1842,10 +1842,10 @@ function RepeatInvitationPopup({
   const inviter = peopleCards.find((person) => person.name === "Lauren Brand") ?? peopleCards[1];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onDismiss}>
+    <div className="absolute inset-0 z-50 flex items-end justify-center overflow-hidden rounded-[44px]" onClick={onDismiss}>
       <div className="absolute inset-0 bg-black/35" />
       <div
-        className="relative mx-auto w-full max-w-[430px] animate-slideUp rounded-t-[28px] bg-white px-6 pb-8 pt-4"
+        className="relative mx-auto max-h-[calc(100%-18px)] w-full animate-slideUp overflow-y-auto rounded-t-[28px] bg-white px-6 pb-8 pt-4"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-line" />
