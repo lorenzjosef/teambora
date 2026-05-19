@@ -17,6 +17,7 @@ import {
   Settings,
   ShieldCheck,
   Square,
+  Star,
   UserRound,
   Users,
   X,
@@ -25,6 +26,7 @@ import { useVoiceInput } from "./voice";
 import businessPlanMarkdown from "../business_plan_v1.md?raw";
 import {
   activityImages,
+  availabilityOptions,
   brandAssets,
   comfortOptions,
   defaultProfile,
@@ -64,11 +66,26 @@ const onboardingSteps: Step[] = ["welcome", "profile", "interests", "comfort", "
 const tabSteps: Step[] = ["home", "calendar", "groups", "addEvent", "friends", "settings"];
 const isOnboarding = (step: Step) => onboardingSteps.includes(step);
 const isTabStep = (step: Step) => tabSteps.includes(step);
+const demoSkipInterests: Interest[] = ["coffee", "walking", "museums"];
+const demoSkipAvailability = availabilityOptions.slice(1, 3);
+const demoSkipRoutines = ["Coffee break · Tuesday 19:00-20:00", "Weekend walk · Saturday 10:00-11:00"];
 
 const formatTime = (slot: AvailabilitySlot) => `${slot.day}, ${slot.startTime}-${slot.endTime}`;
 const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const weekdayLookup = new Map(weekdays.flatMap((day) => [[day.toLowerCase(), day], [day.slice(0, 3).toLowerCase(), day]]));
 const calendarDefaultDay = new Date().toLocaleDateString("en-US", { weekday: "long" });
+const minutesFromTime = (time: string) => {
+  const [hours = 0, minutes = 0] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+};
+const isMeetupPast = (slot: AvailabilitySlot, now = new Date()) => {
+  const meetupDayIndex = weekdays.indexOf(slot.day);
+  if (meetupDayIndex === -1) return false;
+  const todayIndex = weekdays.indexOf(now.toLocaleDateString("en-US", { weekday: "long" }));
+  if (meetupDayIndex < todayIndex) return true;
+  if (meetupDayIndex > todayIndex) return false;
+  return minutesFromTime(slot.endTime) <= now.getHours() * 60 + now.getMinutes();
+};
 
 type ParsedCalendarInput = AvailabilitySlot & {
   title: string;
@@ -133,17 +150,6 @@ const inferInterestFromText = (text: string): Interest => {
   if (lower.includes("cinema") || lower.includes("movie")) return "cinema";
   return "community_events";
 };
-
-const liveWeek = Array.from({ length: 7 }, (_, index) => {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() + index);
-  return {
-    date,
-    day: date.toLocaleDateString("en-US", { weekday: "short" }),
-    monthDay: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-  };
-});
 
 function DutchFlag() {
   return (
@@ -323,7 +329,7 @@ function AroundList({
   const visiblePeople = peopleCards
     .filter((person) => !blockedContacts.includes(person.name) && regionalPlans[person.name])
     .sort((a, b) => Object.keys(regionalPlans).indexOf(a.name) - Object.keys(regionalPlans).indexOf(b.name))
-    .slice(0, 3);
+    .slice(0, 2);
 
   return (
     <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -667,43 +673,83 @@ function InterestsScreen({ profile, setProfile, onNext }: PreferencesScreenProps
 }
 
 function ComfortScreen({ profile, setProfile, onNext }: PreferencesScreenProps) {
-  const toggleComfort = (key: ComfortKey) => {
+  const setRecommendedComfort = () => {
+    setProfile({
+      ...profile,
+      comfort: {
+        ...profile.comfort,
+        smallGroups: true,
+        publicPlacesOnly: true,
+      },
+    });
+  };
+
+  const toggleOptionalComfort = (key: "communityHosted" | "oneToOne") => {
     setProfile({ ...profile, comfort: { ...profile.comfort, [key]: !profile.comfort[key] } });
   };
-  const canContinue = Object.values(profile.comfort).some(Boolean);
+
+  const continueWithRecommended = () => {
+    setProfile({
+      ...profile,
+      comfort: {
+        ...profile.comfort,
+        smallGroups: true,
+        publicPlacesOnly: true,
+      },
+    });
+    onNext();
+  };
 
   return (
-    <section className="space-y-5">
+    <section className="space-y-6">
       <div>
-        <h1 className="title-lg">What feels comfortable?</h1>
-        <p className="body-copy mt-2">These choices filter suggestions before anything is shown.</p>
+        <h1 className="title-lg">Start with easy plans</h1>
+        <p className="body-copy mt-2">We will show small activities in public places first. You can change this later.</p>
       </div>
-      <div className="grid gap-2.5">
-        {comfortOptions.map((item) => (
-          <button className="rounded-[20px] border border-line bg-white px-4 py-3 text-left shadow-card" key={item.id} onClick={() => toggleComfort(item.id)} type="button">
+
+      <button className="soft-card w-full text-left" onClick={setRecommendedComfort} type="button">
+        <div className="flex items-start gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-orangeSoft text-orange">
+            <Users size={20} />
+          </span>
+          <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[15px] font-semibold tracking-[-0.2px]">{item.label}</p>
-                <p className="mt-0.5 text-[13px] text-muted">{item.helper}</p>
-              </div>
-              <span
-                className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${
-                  profile.comfort[item.id] ? "bg-orange text-white" : "bg-line text-muted"
-                }`}
-              >
-                {profile.comfort[item.id] ? <Check size={16} /> : null}
-              </span>
+              <p className="text-[17px] font-semibold leading-5">Public small groups</p>
+              <span className="rounded-full bg-orange px-3 py-1 text-[11px] font-semibold text-white">Default</span>
             </div>
+            <p className="mt-2 text-[13px] leading-5 text-muted">2-5 people in visible places, like libraries, cafes, museums, or parks.</p>
+          </div>
+        </div>
+      </button>
+
+      <div className="space-y-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Optional</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            className={`rounded-[20px] border px-3 py-3 text-left transition ${
+              profile.comfort.communityHosted ? "border-orange bg-orangeSoft text-orange" : "border-line bg-white text-ink"
+            }`}
+            onClick={() => toggleOptionalComfort("communityHosted")}
+            type="button"
+          >
+            <ShieldCheck size={18} />
+            <p className="mt-2 text-[13px] font-semibold leading-4">Host nearby</p>
           </button>
-        ))}
+          <button
+            className={`rounded-[20px] border px-3 py-3 text-left transition ${
+              profile.comfort.oneToOne ? "border-orange bg-orangeSoft text-orange" : "border-line bg-white text-ink"
+            }`}
+            onClick={() => toggleOptionalComfort("oneToOne")}
+            type="button"
+          >
+            <UserRound size={18} />
+            <p className="mt-2 text-[13px] font-semibold leading-4">Also show 1:1</p>
+          </button>
+        </div>
       </div>
-      <button
-        className="cta mt-2 w-full disabled:cursor-not-allowed disabled:opacity-40"
-        disabled={!canContinue}
-        onClick={onNext}
-        type="button"
-      >
-        Continue
+
+      <button className="cta w-full" onClick={continueWithRecommended} type="button">
+        Use this setup
         <ArrowRight size={17} />
       </button>
     </section>
@@ -717,32 +763,17 @@ type CalendarConnectScreenProps = {
 };
 
 function CalendarConnectScreen({ calendarConnected, onConnect, onManual }: CalendarConnectScreenProps) {
-  const freeDays = new Set([1, 3, 4, 5]);
   return (
     <section className="space-y-6">
       <div>
         <h1 className="title-lg">Connect your calendar?</h1>
         <p className="body-copy mt-2">Optional. You can skip and set free windows manually.</p>
       </div>
-      <div className="soft-card space-y-4">
-        <div className="grid h-44 grid-cols-7 gap-1 rounded-[22px] bg-canvas p-3">
-          {liveWeek.map((day, index) => (
-            <div
-              className={`rounded-2xl p-2 text-center text-[11px] ${
-                freeDays.has(index) ? "bg-orange text-white" : "bg-white text-muted"
-              }`}
-              key={day.monthDay}
-            >
-              <p className="font-semibold">{day.day}</p>
-              <p className="mt-1">{day.monthDay.split(" ")[1]}</p>
-              {freeDays.has(index) && <p className="mt-5 text-[10px]">free</p>}
-            </div>
-          ))}
-        </div>
+      <div className="soft-card">
         <div className="flex items-start gap-3">
           <ShieldCheck className="mt-0.5 text-green" size={22} />
           <p className="text-[13px] leading-5 text-muted">
-            Demo import only reads free windows. Production needs explicit consent, revocation, and deletion.
+            I myself wouldn't want to connect my calendar to a sketchy vibe-coded app, so that button just simulates that behaviour.
           </p>
         </div>
       </div>
@@ -1106,7 +1137,7 @@ function SuggestionDetailSheet({
             <img alt="" className="h-full w-full object-cover" src={getSuggestionImage(suggestion)} />
             <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
             <div className="absolute bottom-3 left-3 right-3 text-white">
-              <p className="text-[12px] font-semibold">{suggestion.hostName ?? "Gesellig"} hosts</p>
+              <p className="text-[12px] font-semibold">{suggestion.hostName ?? "Gezellig"} hosts</p>
               <h2 className="mt-1 text-[22px] font-bold leading-[25px] tracking-[-0.5px]">{suggestion.title}</h2>
             </div>
           </div>
@@ -1352,9 +1383,9 @@ function AiPromptSection({
       </div>
 
       {showResult && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setShowResult(false)}>
+        <div className="absolute inset-0 z-50 flex items-end justify-center" onClick={() => setShowResult(false)}>
           <div className="absolute inset-0 bg-black/40" />
-          <div className="relative mx-auto w-full max-w-[430px] animate-slideUp rounded-t-[28px] bg-white px-5 pb-6 pt-4" onClick={(e) => e.stopPropagation()}>
+          <div className="relative w-full animate-slideUp rounded-t-[28px] bg-white px-5 pb-6 pt-4" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line" />
             <div className="space-y-4">
               <div>
@@ -1433,10 +1464,11 @@ function SuggestionsScreen({
   const [selectedSuggestion, setSelectedSuggestion] = useState<ActivitySuggestion | null>(null);
   const [wildcardHidden, setWildcardHidden] = useState(false);
   const acceptedIds = new Set(acceptedList.map((s) => s.id));
-  const visibleSuggestions = [
-    ...suggestions,
-    ...(wildcardHidden || acceptedIds.has(WILDCARD_SUGGESTION.id) ? [] : [WILDCARD_SUGGESTION]),
-  ].filter((suggestion) => !acceptedIds.has(suggestion.id)).slice(0, 3);
+  const baseSuggestions = suggestions.filter((suggestion) => !acceptedIds.has(suggestion.id));
+  const showWildcard = !wildcardHidden && !acceptedIds.has(WILDCARD_SUGGESTION.id);
+  const visibleSuggestions = showWildcard
+    ? [...baseSuggestions.slice(0, 2), WILDCARD_SUGGESTION]
+    : baseSuggestions.slice(0, 3);
   const rejectSuggestion = (id: string) => {
     if (id === WILDCARD_SUGGESTION.id) {
       setWildcardHidden(true);
@@ -1875,6 +1907,14 @@ const participantsList: Participant[] = [
 ];
 
 const getParticipantsForActivity = (activity: ActivitySuggestion) => {
+  if (activity.id === "repeat-coffee-lauren") {
+    const lauren = peopleCards.find((person) => person.name === "Lauren Brand") ?? peopleCards[1];
+    return [
+      { name: lauren.name, image: lauren.image, isFriend: true },
+      { name: "You", image: "", isFriend: true },
+    ];
+  }
+
   const total = Math.min(activity.capacity, activity.confirmedCount + 1);
   return [...participantsList.slice(0, Math.max(total - 1, 0)), { name: "You", image: "", isFriend: true }].slice(0, total);
 };
@@ -1896,6 +1936,43 @@ const repeatCoffeeInvitation: ActivitySuggestion = {
   matchScore: 96,
   matchReasons: ["You met last week", "Coffee worked well before", "Public cafe in Centrum"],
 };
+
+const previousMeetups: ActivitySuggestion[] = [
+  {
+    id: "previous-library-coffee",
+    title: "Library coffee table",
+    interest: "coffee",
+    locationName: "Centrale Bibliotheek cafe",
+    neighborhood: "Centrum",
+    isPublicPlace: true,
+    isCommunityHosted: true,
+    hostName: "Bibliotheek Rotterdam",
+    groupSize: "small_group",
+    capacity: 6,
+    confirmedCount: 5,
+    time: { day: "Monday", label: "Mon afternoon", startTime: "15:30", endTime: "16:30" },
+    status: "completed",
+    matchScore: 91,
+    matchReasons: ["Completed public meetup", "Small group setting", "Community host present"],
+  },
+  {
+    id: "previous-kralingen-walk",
+    title: "Short walk near Kralingen",
+    interest: "walking",
+    locationName: "Kralingse Plas entrance",
+    neighborhood: "Kralingen",
+    isPublicPlace: true,
+    isCommunityHosted: true,
+    hostName: "Rotterdam Library Walks",
+    groupSize: "small_group",
+    capacity: 5,
+    confirmedCount: 4,
+    time: { day: "Sunday", label: "Sun morning", startTime: "10:00", endTime: "11:00" },
+    status: "completed",
+    matchScore: 88,
+    matchReasons: ["Completed public meetup", "Near your area", "Low-pressure activity"],
+  },
+];
 
 function ParticipantAvatar({ participant, className }: { participant: Participant; className: string }) {
   if (participant.image) {
@@ -2052,39 +2129,58 @@ function ParticipantsScreen({ activity, onBack, onChat }: { activity: ActivitySu
 }
 
 type FeedbackScreenProps = {
+  activity: ActivitySuggestion;
+  blockedContacts: string[];
+  existingFeedback?: Feedback;
   onBack: () => void;
+  onToggleBlockContact: (name: string) => void;
   onSubmit: (feedback: Feedback) => void;
-  suggestionId: string;
 };
 
-function FeedbackScreen({ onBack, onSubmit, suggestionId }: FeedbackScreenProps) {
-  const [rating, setRating] = useState<1 | 2 | 3 | 4 | 5>(4);
-  const [wantsRepeat, setWantsRepeat] = useState(true);
+function FeedbackScreen({ activity, blockedContacts, existingFeedback, onBack, onSubmit, onToggleBlockContact }: FeedbackScreenProps) {
+  const [rating, setRating] = useState<1 | 2 | 3 | 4 | 5>(existingFeedback?.connectionRating ?? 4);
+  const [wantsRepeat, setWantsRepeat] = useState(existingFeedback?.wantsRepeat ?? true);
+  const [feedbackText, setFeedbackText] = useState(existingFeedback?.feedbackText ?? "");
+  const [reportText, setReportText] = useState(existingFeedback?.reportText ?? "");
+  const attendees = getParticipantsForActivity(activity).filter((participant) => participant.name !== "You");
 
   return (
     <section className="space-y-6">
       <BackButton onBack={onBack} />
       <div>
         <div className="top-line mb-5" />
-        <h1 className="title-lg">How did it feel?</h1>
+        <h1 className="title-lg">Rate this meet-up</h1>
+        <p className="mt-2 text-[14px] font-semibold">{activity.title}</p>
+        <p className="text-[12px] text-muted">{formatTime(activity.time)} · {activity.locationName}</p>
         <p className="body-copy mt-2">Feedback stays private. Dashboard receives only grouped trends.</p>
       </div>
       <div className="soft-card">
-        <p className="mb-3 text-[13px] font-semibold">How connected did you feel?</p>
+        <p className="mb-3 text-[13px] font-semibold">How was the meet-up?</p>
         <div className="flex gap-2">
           {[1, 2, 3, 4, 5].map((value) => (
             <button
-              className={`grid h-10 flex-1 place-items-center rounded-2xl text-[13px] font-semibold ${
-                rating === value ? "bg-orange text-white" : "bg-canvas text-muted"
+              className={`grid h-11 flex-1 place-items-center rounded-2xl ${
+                rating >= value ? "bg-orangeSoft text-orange" : "bg-canvas text-muted"
               }`}
               key={value}
               onClick={() => setRating(value as 1 | 2 | 3 | 4 | 5)}
+              aria-label={`${value} stars`}
               type="button"
             >
-              {value}
+              <Star size={18} fill={rating >= value ? "currentColor" : "none"} />
             </button>
           ))}
         </div>
+      </div>
+      <div className="soft-card">
+        <label className="text-[13px] font-semibold" htmlFor="feedback-text">Feedback</label>
+        <textarea
+          className="input mt-3 min-h-24 resize-none py-3"
+          id="feedback-text"
+          onChange={(event) => setFeedbackText(event.target.value)}
+          placeholder="What worked well, or what should be different next time?"
+          value={feedbackText}
+        />
       </div>
       <button className="soft-card w-full text-left" onClick={() => setWantsRepeat(!wantsRepeat)} type="button">
         <div className="flex items-center justify-between">
@@ -2097,16 +2193,59 @@ function FeedbackScreen({ onBack, onSubmit, suggestionId }: FeedbackScreenProps)
           </span>
         </div>
       </button>
+      <div className="soft-card">
+        <label className="text-[13px] font-semibold" htmlFor="report-text">Report an issue</label>
+        <p className="mt-1 text-[12px] text-muted">Optional. Use this for safety, host, or venue issues.</p>
+        <textarea
+          className="input mt-3 min-h-20 resize-none py-3"
+          id="report-text"
+          onChange={(event) => setReportText(event.target.value)}
+          placeholder="Describe what happened"
+          value={reportText}
+        />
+      </div>
+      <div className="soft-card space-y-3">
+        <div>
+          <p className="text-[13px] font-semibold">People from this meet-up</p>
+          <p className="mt-1 text-[12px] text-muted">Block an attendee if you do not want to see or chat with them again.</p>
+        </div>
+        <div className="space-y-2">
+          {attendees.map((attendee) => {
+            const isBlocked = blockedContacts.includes(attendee.name);
+            return (
+              <button
+                className="flex w-full items-center justify-between gap-3 rounded-[16px] bg-canvas px-3 py-2 text-left"
+                key={attendee.name}
+                onClick={() => onToggleBlockContact(attendee.name)}
+                type="button"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <ParticipantAvatar participant={attendee} className="h-8 w-8 rounded-full" />
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-semibold">{attendee.name}</p>
+                    <p className="text-[11px] text-muted">{attendee.isFriend ? "Connected attendee" : "Attendee"}</p>
+                  </div>
+                </div>
+                <span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold ${isBlocked ? "bg-ink text-white" : "bg-white text-muted"}`}>
+                  {isBlocked ? "Unblock" : "Block"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <button
         className="cta w-full"
         onClick={() =>
           onSubmit({
-            suggestionId,
+            suggestionId: activity.id,
             attended: true,
             feltComfortable: true,
             wantsRepeat,
             connectionRating: rating,
-            reportedIssue: false,
+            reportedIssue: reportText.trim().length > 0,
+            feedbackText: feedbackText.trim(),
+            reportText: reportText.trim(),
           })
         }
         type="button"
@@ -2248,15 +2387,25 @@ function CalendarScreen({
   onConnectPage: () => void;
   onCancelAccepted: () => void;
   onManual: () => void;
-  onFeedback: () => void;
+  onFeedback: (activity: ActivitySuggestion) => void;
   onOpenAccepted: (s: ActivitySuggestion) => void;
   acceptedList: ActivitySuggestion[];
   calendarConnected: boolean;
   feedback: Feedback[];
   profile: ResidentProfile;
 }) {
+  const [meetupView, setMeetupView] = useState<"upcoming" | "previous">("upcoming");
+  const feedbackById = new Map(feedback.map((item) => [item.suggestionId, item]));
   const attendedIds = new Set(feedback.filter((item) => item.attended).map((item) => item.suggestionId));
   const availabilitySource = calendarConnected ? "Calendar connection" : "Manual onboarding slots";
+  const upcomingMeetups = acceptedList.filter((item) => !isMeetupPast(item.time) && !attendedIds.has(item.id));
+  const acceptedPreviousMeetups = acceptedList.filter((item) => isMeetupPast(item.time) || attendedIds.has(item.id));
+  const previousIds = new Set(acceptedPreviousMeetups.map((item) => item.id));
+  const allPreviousMeetups = [
+    ...acceptedPreviousMeetups,
+    ...previousMeetups.filter((item) => !previousIds.has(item.id)),
+  ];
+  const displayedMeetups = meetupView === "upcoming" ? upcomingMeetups : allPreviousMeetups;
 
   return (
     <section className="space-y-5">
@@ -2287,21 +2436,48 @@ function CalendarScreen({
           </div>
         )}
       </div>
-      <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">Meet-ups</p>
-      {acceptedList.length > 0 ? (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">Meet-ups</p>
+          <span className="text-[11px] font-semibold text-orange">{upcomingMeetups.length} upcoming</span>
+        </div>
+        <div className="grid grid-cols-2 gap-1 rounded-full border border-line bg-white p-1 shadow-card">
+          {(["upcoming", "previous"] as const).map((item) => (
+            <button
+              className={`rounded-full px-2 py-2 text-[11px] font-semibold capitalize ${meetupView === item ? "bg-ink text-white" : "text-muted"}`}
+              key={item}
+              onClick={() => setMeetupView(item)}
+              type="button"
+            >
+              {item} {item === "previous" ? allPreviousMeetups.length : upcomingMeetups.length}
+            </button>
+          ))}
+        </div>
+      </div>
+      {displayedMeetups.length > 0 ? (
         <div className="grid gap-3">
-          {acceptedList.map((item) => (
+          {displayedMeetups.map((item) => {
+            const itemFeedback = feedbackById.get(item.id);
+            const isPrevious = meetupView === "previous";
+            return (
             <div className="soft-card" key={item.id}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[12px] font-semibold text-orange">
-                    {attendedIds.has(item.id) ? "Attended" : "Signed up"}
+                    {isPrevious ? itemFeedback ? "Rated" : "Previous meet-up" : "Signed up"}
                   </p>
                   <p className="mt-1 text-[16px] font-semibold">{item.title}</p>
                   <p className="text-[12px] text-muted">{formatTime(item.time)}</p>
                   <p className="text-[12px] text-muted">{item.locationName}</p>
+                  {isPrevious && itemFeedback ? (
+                    <div className="mt-2 flex gap-0.5 text-orange">
+                      {[1, 2, 3, 4, 5].map((value) => (
+                        <Star key={value} size={13} fill={itemFeedback.connectionRating >= value ? "currentColor" : "none"} />
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-                {attendedIds.has(item.id) ? (
+                {isPrevious ? (
                   <Check className="text-green" size={24} />
                 ) : (
                   <CalendarDays className="text-orange" size={24} />
@@ -2309,19 +2485,27 @@ function CalendarScreen({
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <button className="cta-secondary" onClick={() => onOpenAccepted(item)} type="button">Open</button>
-                <button className="cta-secondary" onClick={onCancelAccepted} type="button">Cancel</button>
+                {isPrevious ? (
+                  <button className="cta-secondary" onClick={() => onFeedback(item)} type="button">
+                    {itemFeedback ? "Edit rating" : "Rate"}
+                  </button>
+                ) : (
+                  <button className="cta-secondary" onClick={onCancelAccepted} type="button">Cancel</button>
+                )}
               </div>
+              {!isPrevious ? (
+                <p className="mt-2 rounded-[14px] bg-tertiary px-3 py-2 text-[11px] font-semibold text-muted">
+                  Feedback opens after the meet-up has ended.
+                </p>
+              ) : null}
             </div>
-          ))}
-          <button className="cta w-full" onClick={onFeedback} type="button">
-            Add feedback
-          </button>
+          )})}
         </div>
       ) : (
         <div className="soft-card text-center">
           <CalendarDays className="mx-auto text-orange" size={28} />
-          <p className="mt-3 text-[16px] font-semibold">No meet-ups yet</p>
-          <p className="body-copy mt-1">Accept a group activity and it will appear here.</p>
+          <p className="mt-3 text-[16px] font-semibold">{meetupView === "upcoming" ? "No upcoming meet-ups" : "No previous meet-ups"}</p>
+          <p className="body-copy mt-1">{meetupView === "upcoming" ? "Accept a group activity and it will appear here." : "Completed meet-ups will appear here for rating and feedback."}</p>
         </div>
       )}
       <button className="cta w-full" onClick={onConnectPage} type="button">
@@ -2335,23 +2519,35 @@ function CalendarScreen({
 }
 
 function FriendsScreen({
+  acceptedFriends,
   blockedContacts,
   feedback,
   friendInvites,
   onMessage,
-  onPlan,
   onAcceptInvite,
+  onBlockContact,
 }: {
+  acceptedFriends: string[];
   blockedContacts: string[];
   feedback: Feedback[];
   friendInvites: string[];
   onMessage: (person: ChatPerson) => void;
-  onPlan: () => void;
   onAcceptInvite: (name: string) => void;
+  onBlockContact: (name: string) => void;
 }) {
-  const [filter, setFilter] = useState<"invites" | "friends" | "suggested">("invites");
+  const [filter, setFilter] = useState<"friends" | "suggested" | "invites">("friends");
   const [search, setSearch] = useState("");
+  const [invitedSuggestedFriends, setInvitedSuggestedFriends] = useState<string[]>([]);
   const hasRepeat = feedback.some((item) => item.wantsRepeat);
+  const acceptedFriendRows = acceptedFriends.map((name) => {
+    const person = peopleCards.find((item) => item.name === name) ?? { name, image: "", note: "Accepted invite", daysLeft: "" };
+    return {
+      kind: "friends" as const,
+      label: `${name} from nearby walks`,
+      helper: "Accepted invite",
+      person,
+    };
+  });
   const baseRows = [
     {
       kind: "invites" as const,
@@ -2365,6 +2561,7 @@ function FriendsScreen({
       helper: hasRepeat ? "Meet-again preference saved" : "Current connection",
       person: peopleCards.find((person) => person.name === "Lauren Brand") ?? peopleCards[1],
     },
+    ...acceptedFriendRows,
     {
       kind: "suggested" as const,
       label: "Daan V. from evening walks",
@@ -2383,9 +2580,13 @@ function FriendsScreen({
     .filter((row) => !blockedContacts.includes(row.person.name))
     .filter((row) => row.label.toLowerCase().includes(search.trim().toLowerCase()) || row.person.name.toLowerCase().includes(search.trim().toLowerCase()))
     .filter((row) => row.kind !== "invites" || friendInvites.includes(row.person.name));
+  const acceptInvite = (name: string) => {
+    onAcceptInvite(name);
+    setFilter("friends");
+  };
   const counts = {
     invites: baseRows.filter((row) => row.kind === "invites" && friendInvites.includes(row.person.name)).length,
-    friends: baseRows.filter((row) => row.kind === "friends").length,
+    friends: baseRows.filter((row) => row.kind === "friends" && !blockedContacts.includes(row.person.name)).length,
     suggested: baseRows.filter((row) => row.kind === "suggested").length,
   };
 
@@ -2402,7 +2603,7 @@ function FriendsScreen({
         value={search}
       />
       <div className="grid grid-cols-3 gap-1 rounded-full border border-line bg-white p-1 shadow-card">
-        {(["invites", "friends", "suggested"] as const).map((item) => (
+        {(["friends", "suggested", "invites"] as const).map((item) => (
           <button
             className={`rounded-full px-2 py-2 text-[11px] font-semibold capitalize ${filter === item ? "bg-ink text-white" : "text-muted"}`}
             key={item}
@@ -2429,14 +2630,30 @@ function FriendsScreen({
           </div>
           <div className="flex shrink-0 gap-2">
             {friend.kind === "invites" ? (
-              <button className="rounded-full bg-ink px-3 py-1.5 text-[11px] font-semibold text-white" onClick={() => onAcceptInvite(friend.person.name)} type="button">
+              <button className="rounded-full bg-ink px-3 py-1.5 text-[11px] font-semibold text-white" onClick={() => acceptInvite(friend.person.name)} type="button">
                 Accept
               </button>
             ) : null}
             <button className="cta-secondary h-9 px-3" onClick={() => onMessage(friend.person)} type="button">
               Message
             </button>
-            {friend.kind === "suggested" ? <button className="cta-secondary h-9 px-3" onClick={onPlan} type="button">Invite</button> : null}
+            {friend.kind === "suggested" ? (
+              <button
+                className={`h-9 rounded-full px-3 text-[12px] font-semibold ${
+                  invitedSuggestedFriends.includes(friend.person.name)
+                    ? "bg-line text-muted"
+                    : "bg-tertiary text-ink"
+                }`}
+                disabled={invitedSuggestedFriends.includes(friend.person.name)}
+                onClick={() => setInvitedSuggestedFriends((current) => current.includes(friend.person.name) ? current : [...current, friend.person.name])}
+                type="button"
+              >
+                {invitedSuggestedFriends.includes(friend.person.name) ? "Invited" : "Invite"}
+              </button>
+            ) : null}
+            <button className="grid h-9 w-9 place-items-center rounded-full bg-tertiary text-muted" onClick={() => onBlockContact(friend.person.name)} type="button" aria-label={`Block ${friend.person.name}`}>
+              <X size={15} />
+            </button>
           </div>
         </div>
       ))}
@@ -2459,8 +2676,14 @@ function SettingsScreen({ blockedContacts, profile, setBlockedContacts, setProfi
         : [...blockedContacts, name],
     );
   };
+  const toggleComfort = (key: ComfortKey) => {
+    setProfile({ ...profile, comfort: { ...profile.comfort, [key]: !profile.comfort[key] } });
+  };
 
   const settingInputClass = "w-full bg-transparent text-right text-[14px] font-semibold text-ink outline-none placeholder:text-muted";
+  const activeComfortLabels = comfortOptions
+    .filter((option) => profile.comfort[option.id])
+    .map((option) => option.label.toLowerCase());
 
   return (
     <section className="space-y-5 pb-4">
@@ -2482,7 +2705,9 @@ function SettingsScreen({ blockedContacts, profile, setBlockedContacts, setProfi
           </div>
           <div className="min-w-0">
             <p className="truncate text-[16px] font-semibold">{profile.displayName || "Alias"}</p>
-            <p className="text-[12px] text-muted">{profile.neighborhood} · Public places only</p>
+            <p className="text-[12px] text-muted">
+              {profile.neighborhood} · {activeComfortLabels[0] ?? "Comfort settings"}
+            </p>
           </div>
         </div>
       </div>
@@ -2536,6 +2761,40 @@ function SettingsScreen({ blockedContacts, profile, setBlockedContacts, setProfi
       </div>
 
       <div className="space-y-2">
+        <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Comfort and privacy</p>
+        <div className="grid grid-cols-2 gap-2">
+          {comfortOptions.map((option) => (
+            <button
+              className={`rounded-[20px] border px-3 py-3 text-left shadow-card transition ${
+                profile.comfort[option.id] ? "border-orange bg-orangeSoft text-orange" : "border-line bg-white text-ink"
+              }`}
+              key={option.id}
+              onClick={() => toggleComfort(option.id)}
+              type="button"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold leading-4">{option.label}</p>
+                  <p className={`mt-1 text-[11px] leading-4 ${profile.comfort[option.id] ? "text-orange" : "text-muted"}`}>
+                    {option.helper}
+                  </p>
+                </div>
+                <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full ${profile.comfort[option.id] ? "bg-orange text-white" : "bg-tertiary text-muted"}`}>
+                  {profile.comfort[option.id] ? <Check size={13} /> : null}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+        <div className="rounded-[18px] bg-tertiary px-4 py-3">
+          <p className="text-[12px] font-semibold text-ink">Private by default</p>
+          <p className="mt-1 text-[12px] leading-5 text-muted">
+            These settings only guide matching. They are not shown as profile labels to other residents or the municipality.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
         <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Privacy and safety</p>
         <div className="overflow-hidden rounded-[22px] border border-line bg-white shadow-card">
           <div className="flex min-h-14 items-center gap-3 border-b border-line px-4">
@@ -2560,27 +2819,34 @@ function SettingsScreen({ blockedContacts, profile, setBlockedContacts, setProfi
       <div className="space-y-2">
         <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Blocked contacts</p>
         <div className="overflow-hidden rounded-[22px] border border-line bg-white shadow-card">
-          {peopleCards.map((person, index) => {
-            const blocked = blockedContacts.includes(person.name);
+          {blockedContacts.length === 0 ? (
+            <div className="px-4 py-4">
+              <p className="text-[14px] font-semibold">No blocked contacts</p>
+              <p className="mt-1 text-[12px] text-muted">You can block someone from Friends or archived meet-up feedback.</p>
+            </div>
+          ) : (
+          blockedContacts.map((name, index) => {
+            const person = peopleCards.find((item) => item.name === name);
             return (
               <button
                 className={`flex w-full items-center justify-between px-4 py-3 text-left transition active:bg-tertiary ${
-                  index < peopleCards.length - 1 ? "border-b border-line" : ""
+                  index < blockedContacts.length - 1 ? "border-b border-line" : ""
                 }`}
-                key={person.name}
-                onClick={() => toggleBlockedContact(person.name)}
+                key={name}
+                onClick={() => toggleBlockedContact(name)}
                 type="button"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-[14px] font-semibold">{person.name}</p>
-                  <p className="text-[12px] text-muted">{blocked ? "Blocked from chats and people lists" : person.note}</p>
+                  <p className="truncate text-[14px] font-semibold">{name}</p>
+                  <p className="text-[12px] text-muted">{person?.note ?? "Blocked from chats and people lists"}</p>
                 </div>
-                <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${blocked ? "bg-ink text-white" : "bg-tertiary text-muted"}`}>
-                  {blocked ? "Unblock" : "Block"}
+                <span className="rounded-full bg-ink px-3 py-1 text-[11px] font-semibold text-white">
+                  Unblock
                 </span>
               </button>
             );
-          })}
+          })
+          )}
         </div>
       </div>
     </section>
@@ -2656,6 +2922,7 @@ export default function App() {
   const [rejectedIds, setRejectedIds] = useState<string[]>([]);
   const [blockedIds, setBlockedIds] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<Feedback[]>([]);
+  const [feedbackTarget, setFeedbackTarget] = useState<ActivitySuggestion | null>(null);
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [chatPerson, setChatPerson] = useState<ChatPerson | null>(null);
   const [showConfirmedPopup, setShowConfirmedPopup] = useState(false);
@@ -2663,6 +2930,7 @@ export default function App() {
   const [repeatInvitationShown, setRepeatInvitationShown] = useState(false);
   const [blockedContacts, setBlockedContacts] = useState<string[]>([]);
   const [friendInvites, setFriendInvites] = useState<string[]>(["Ann James"]);
+  const [acceptedFriends, setAcceptedFriends] = useState<string[]>([]);
   const [llmSuggestions, setLlmSuggestions] = useState<ActivitySuggestion[] | null>(null);
   const [llmSuggestionKey, setLlmSuggestionKey] = useState("");
   const [eventPromptDraft, setEventPromptDraft] = useState("");
@@ -2767,7 +3035,7 @@ export default function App() {
       const dayName = days[(currentDay + i) % 7 || 7 - 1] || days[d.getDay() === 0 ? 6 : d.getDay() - 1];
       const dayLabel = d.toLocaleDateString("en-US", { weekday: "short" });
 
-      if (i === 1 || i === 3 || i === 5) {
+      if (i === 1 || i === 3) {
         generated.push({
           day: dayName,
           label: `${dayLabel} evening`,
@@ -2775,7 +3043,7 @@ export default function App() {
           endTime: "20:00",
         });
       }
-      if (i === 4 || i === 5) {
+      if (i === 5) {
         generated.push({
           day: dayName,
           label: `${dayLabel} morning`,
@@ -2825,23 +3093,33 @@ export default function App() {
     setLastAccepted(null);
     setStep("groups");
   };
-  const planWithFriend = () => {
-    const next = (suggestions[0] ?? sessions[0]) as ActivitySuggestion;
-    if (next) acceptSuggestion(next);
-  };
-
   const acceptFriendInvite = (name: string) => {
     setFriendInvites((current) => current.filter((item) => item !== name));
+    setAcceptedFriends((current) => current.includes(name) ? current : [...current, name]);
+  };
+
+  const blockContact = (name: string) => {
+    setBlockedContacts((current) => current.includes(name) ? current : [...current, name]);
+    setFriendInvites((current) => current.filter((item) => item !== name));
+    setAcceptedFriends((current) => current.filter((item) => item !== name));
+  };
+
+  const toggleBlockedContact = (name: string) => {
+    setBlockedContacts((current) =>
+      current.includes(name) ? current.filter((item) => item !== name) : [...current, name],
+    );
   };
 
   const submitFeedback = (nextFeedback: Feedback) => {
     setFeedback((current) => [...current.filter((item) => item.suggestionId !== nextFeedback.suggestionId), nextFeedback]);
+    setFeedbackTarget(null);
     setStep("feedbackSuccess");
   };
 
-  const openFeedback = () => {
+  const openFeedback = (activity: ActivitySuggestion) => {
     setReturnStep("calendar");
-    setStep(acceptedList.length > 0 ? "feedback" : "groups");
+    setFeedbackTarget(activity);
+    setStep("feedback");
   };
 
   const goBackToReturnStep = () => {
@@ -2855,6 +3133,31 @@ export default function App() {
     if (step === "calendarConnect") setStep("comfort");
     if (step === "manualAvailability") goBackToReturnStep();
     if (step === "habits") setStep("manualAvailability");
+  };
+
+  const completeOnboardingWithDefaults = () => {
+    setProfile((current) => {
+      const hasComfortSelection = Object.values(current.comfort).some(Boolean);
+
+      return {
+        ...current,
+        displayName: current.displayName.trim() ? current.displayName : defaultProfile.displayName,
+        neighborhood: current.neighborhood.trim() ? current.neighborhood : defaultProfile.neighborhood,
+        interests: current.interests.length > 0 ? current.interests : demoSkipInterests,
+        comfort: hasComfortSelection
+          ? current.comfort
+          : {
+              ...current.comfort,
+              smallGroups: true,
+              oneToOne: false,
+              publicPlacesOnly: true,
+              communityHosted: true,
+            },
+        availability: current.availability.length > 0 ? current.availability : demoSkipAvailability,
+        routines: current.routines.length > 0 ? current.routines : demoSkipRoutines,
+      };
+    });
+    setStep("groups");
   };
 
   const acceptRepeatInvitation = () => {
@@ -2983,12 +3286,13 @@ export default function App() {
     if (step === "friends") {
       return (
         <FriendsScreen
+          acceptedFriends={acceptedFriends}
           blockedContacts={blockedContacts}
           feedback={feedback}
           friendInvites={friendInvites}
           onAcceptInvite={acceptFriendInvite}
+          onBlockContact={blockContact}
           onMessage={openChat}
-          onPlan={planWithFriend}
         />
       );
     }
@@ -3042,8 +3346,17 @@ export default function App() {
       return <ParticipantsScreen activity={lastAccepted} onBack={() => setStep("groups")} onChat={openChat} />;
     }
 
-    if (step === "feedback" && lastAccepted) {
-      return <FeedbackScreen onBack={goBackToReturnStep} onSubmit={submitFeedback} suggestionId={lastAccepted.id} />;
+    if (step === "feedback" && feedbackTarget) {
+      return (
+        <FeedbackScreen
+          activity={feedbackTarget}
+          blockedContacts={blockedContacts}
+          existingFeedback={feedback.find((item) => item.suggestionId === feedbackTarget.id)}
+          onBack={goBackToReturnStep}
+          onToggleBlockContact={toggleBlockedContact}
+          onSubmit={submitFeedback}
+        />
+      );
     }
 
     return null;
@@ -3056,46 +3369,57 @@ export default function App() {
         {mode === "business" ? (
           <BusinessPlanView />
         ) : mode === "mobile" ? (
-          <div className="phone-frame relative">
-            <StatusBar />
-            <div className="screen-pad">
-              {isOnboarding(step) && step !== "welcome" ? <OnboardingHeader onBack={goBackInOnboarding} /> : null}
-              {isOnboarding(step) && step !== "welcome" ? <Progress step={step} /> : null}
-              {renderScreen()}
+          <div className="relative w-full max-w-[390px]">
+            {isOnboarding(step) ? (
+              <button
+                className="absolute right-0 top-0 z-30 -translate-y-[calc(100%+8px)] rounded-full border border-line bg-white px-4 py-2 text-[12px] font-semibold text-ink shadow-card transition active:scale-[0.98] md:-right-2 md:top-4 md:-translate-y-0 md:translate-x-full"
+                onClick={completeOnboardingWithDefaults}
+                type="button"
+              >
+                Skip onboarding
+              </button>
+            ) : null}
+            <div className="phone-frame relative">
+              <StatusBar />
+              <div className="screen-pad">
+                {isOnboarding(step) && step !== "welcome" ? <OnboardingHeader onBack={goBackInOnboarding} /> : null}
+                {isOnboarding(step) && step !== "welcome" ? <Progress step={step} /> : null}
+                {renderScreen()}
+              </div>
+              {isTabStep(step) ? (
+                <BottomNav
+                  acceptedCount={acceptedList.length}
+                  active={step}
+                  friendInviteCount={friendInvites.length}
+                  onAddEvent={goAddEvent}
+                  onCalendar={goCalendar}
+                  onFriends={goFriends}
+                  onHome={goHome}
+                  onSettings={goSettings}
+                />
+              ) : null}
+              {showConfirmedPopup && lastAccepted ? (
+                <ConfirmedPopup
+                  confirmed={lastAccepted}
+                  onDismiss={() => setShowConfirmedPopup(false)}
+                  onViewParticipants={() => {
+                    setShowConfirmedPopup(false);
+                    setStep("participants");
+                  }}
+                  onChat={() => {
+                    setShowConfirmedPopup(false);
+                    openChat({ name: lastAccepted.hostName ?? "Group", image: "", note: "Group chat", daysLeft: "" });
+                  }}
+                />
+              ) : null}
+              {showRepeatInvitation && !showConfirmedPopup ? (
+                <RepeatInvitationPopup
+                  onAccept={acceptRepeatInvitation}
+                  onChat={chatWithRepeatInviter}
+                  onDismiss={dismissRepeatInvitation}
+                />
+              ) : null}
             </div>
-            {isTabStep(step) ? (
-              <BottomNav
-                acceptedCount={acceptedList.length}
-                active={step}
-                friendInviteCount={friendInvites.length}
-                onAddEvent={goAddEvent}
-                onCalendar={goCalendar}
-                onFriends={goFriends}
-                onHome={goHome}
-                onSettings={goSettings}
-              />
-            ) : null}
-            {showConfirmedPopup && lastAccepted ? (
-              <ConfirmedPopup
-                confirmed={lastAccepted}
-                onDismiss={() => setShowConfirmedPopup(false)}
-                onViewParticipants={() => {
-                  setShowConfirmedPopup(false);
-                  setStep("participants");
-                }}
-                onChat={() => {
-                  setShowConfirmedPopup(false);
-                  openChat({ name: lastAccepted.hostName ?? "Group", image: "", note: "Group chat", daysLeft: "" });
-                }}
-              />
-            ) : null}
-            {showRepeatInvitation && !showConfirmedPopup ? (
-              <RepeatInvitationPopup
-                onAccept={acceptRepeatInvitation}
-                onChat={chatWithRepeatInviter}
-                onDismiss={dismissRepeatInvitation}
-              />
-            ) : null}
           </div>
         ) : (
           <Dashboard

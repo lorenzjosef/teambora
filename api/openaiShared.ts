@@ -1,5 +1,5 @@
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
-export const OPENAI_MODEL = "gpt-5.4-nano";
+export const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-5.5";
 
 type JsonObject = Record<string, unknown>;
 

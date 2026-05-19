@@ -2,7 +2,7 @@
 
 ## Project
 
-This repo contains a one-day prototype for **Gesellig**, an opt-in social activity app for Dutch municipalities.
+This repo contains a one-day prototype for **Gezellig**, an opt-in social activity app for Dutch municipalities.
 
 The product helps residents turn free moments into real-life shared activities. It must not feel like a loneliness app, diagnosis tool, surveillance system, or dating app.
 

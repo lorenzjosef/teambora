@@ -2,7 +2,7 @@
 
 ## 1. Title
 
-Gesellig: turning free moments into shared activities.
+Gezellig: turning free moments into shared activities.
 
 ## 2. Problem
 
@@ -14,7 +14,7 @@ The barrier is often coordination, not willingness: shared interests, overlappin
 
 ## 4. Solution
 
-Gesellig is an opt-in activity planner for residents. It suggests real-life activities based on interests, availability, comfort preferences, and rough location.
+Gezellig is an opt-in activity planner for residents. It suggests real-life activities based on interests, availability, comfort preferences, and rough location.
 
 ## 5. Product Flow
 

@@ -1,6 +1,6 @@
-# Gesellig Prototype
+# Gezellig Prototype
 
-Mobile-first Vite/React prototype for the loneliness challenge. Gesellig is an opt-in activity coordination app for Dutch cities: it helps residents turn free moments into shared real-life activities without diagnosis, scoring, or surveillance framing.
+Mobile-first Vite/React prototype for the loneliness challenge. Gezellig is an opt-in activity coordination app for Dutch cities: it helps residents turn free moments into shared real-life activities without diagnosis, scoring, or surveillance framing.
 
 ## Run locally
 

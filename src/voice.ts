@@ -1,23 +1,20 @@
 import { useCallback, useRef, useState } from "react";
 import type { Interest } from "./types";
 
-const ELEVENLABS_API_KEY = "sk_5277f5e0661acee96687ef7f2da5ce2b8a7ce216f08378e3";
 const MODEL_ID = "scribe_v2_realtime";
 
 async function getRealtimeToken(): Promise<string> {
-  try {
-    const res = await fetch("https://api.elevenlabs.io/v1/single-use-token/realtime_scribe", {
-      method: "POST",
-      headers: { "xi-api-key": ELEVENLABS_API_KEY },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return data.token;
-    }
-  } catch {
-    // CORS blocked or network error
+  const res = await fetch("/api/elevenlabs-token", { method: "POST" });
+  if (!res.ok) {
+    throw new Error("Voice token unavailable");
   }
-  return ELEVENLABS_API_KEY;
+
+  const data = await res.json();
+  if (!data || typeof data.token !== "string") {
+    throw new Error("Voice token response was invalid");
+  }
+
+  return data.token;
 }
 
 const KEYWORD_MAP: Record<string, Interest> = {
@@ -258,7 +255,6 @@ export function useVoiceInput() {
     mediaStreamRef.current = stream;
 
     const token = await getRealtimeToken();
-    console.log("[voice] token:", token.startsWith("sutkn") ? "single-use" : "api-key-fallback");
     const params = new URLSearchParams({
       model_id: MODEL_ID,
       token,

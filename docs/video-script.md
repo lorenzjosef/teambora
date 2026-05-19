@@ -2,7 +2,7 @@
 
 ## Goal
 
-Show that Gesellig helps cities enable real-world connection without diagnosing, scoring, or surveilling residents.
+Show that Gezellig helps cities enable real-world connection without diagnosing, scoring, or surveilling residents.
 
 ## Timing
 
@@ -10,11 +10,11 @@ Show that Gesellig helps cities enable real-world connection without diagnosing,
 
 Voiceover:
 
-"Many residents want more everyday connection, but they do not want to sign up for something labeled as a loneliness initiative. Gesellig reframes the problem: not as diagnosis, but as coordination."
+"Many residents want more everyday connection, but they do not want to sign up for something labeled as a loneliness initiative. Gezellig reframes the problem: not as diagnosis, but as coordination."
 
 Visual:
 
-- Open on Gesellig welcome screen.
+- Open on Gezellig welcome screen.
 - Show Dutch flag and private-by-default line.
 
 ### 0:20-0:45 — Product Promise
@@ -45,7 +45,7 @@ Visual:
 
 Voiceover:
 
-"Gesellig recommends only a few good options. Each recommendation explains why it fits, so residents understand the coordination logic."
+"Gezellig recommends only a few good options. Each recommendation explains why it fits, so residents understand the coordination logic."
 
 Visual:
 
